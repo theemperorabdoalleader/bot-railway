@@ -1,0 +1,21 @@
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+
+async function start() {
+  const { state, saveCreds } = await useMultiFileAuthState('/app/session');
+  const sock = makeWASocket({ auth: state });
+  sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('connection.update', ({ connection, qr }) => {
+    if(qr) console.log('QR:', qr);
+    if(connection === 'open') console.log('البوت اشتغل ✅');
+  });
+
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const msg = messages[0];
+    if(!msg.message || msg.key.fromMe) return;
+    const text = msg.message.conversation;
+    if(text === '.ping')
+      await sock.sendMessage(msg.key.remoteJid, { text: 'pong شغال' });
+  });
+}
+start();

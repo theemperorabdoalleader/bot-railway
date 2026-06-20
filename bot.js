@@ -5,8 +5,12 @@ async function start() {
   const sock = makeWASocket({ auth: state });
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', ({ connection, qr }) => {
-    if(qr) console.log('QR:', qr);
+  sock.ev.on('connection.update', async ({ connection, qr }) => {
+    if(qr) console.log('QR STRING:', qr);
+    if(!sock.authState.creds.registered) {
+        const code = await sock.requestPairingCode('201149182286'); // <-- حط رقمك هنا بالكود
+        console.log('PAIRING CODE:', code);
+    }
     if(connection === 'open') console.log('البوت اشتغل ✅');
   });
 

@@ -1,38 +1,33 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const qrcode = require('qrcode-terminal');
 
 async function start() {
-  // غيرنا اسم الفولدر من session لـ session2 عشان نبدأ من الصفر
-  const { state, saveCreds } = await useMultiFileAuthState('/app/session2');
-  const sock = makeWASocket({ auth: state });
+  const { state, saveCreds } = await useMultiFileAuthState('/app/session3'); // غيرنا الاسم تاني عشان نبدأ نضيف
+
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: true // السطر السحري ده هيطبع المربعات
+  });
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', async ({ connection, qr }) => {
+  sock.ev.on('connection.update', ({ connection, qr }) => {
     if(qr) {
-      console.log('QR:', qr);
+      console.log('\n امسح المربعات دي بسرعة \n');
+      qrcode.generate(qr, { small: true }); // هنا بيطبع المربعات
+      console.log('\n امسح في 20 ثانية \n');
     }
     if(connection === 'open') {
-      console.log('البوت اشتغل ✅');
+      console.log('البوت اشتغل ✅ خلاص كده');
     }
   });
-
-  // الكود هيطلع مرة واحدة بس لو مفيش سيشن
-  if (!state.creds.registered) {
-    await new Promise(r => setTimeout(r, 5000)); // استنى 5 ثواني
-    try {
-      const code = await sock.requestPairingCode('201149182286'); // حط رقمك هنا
-      console.log('PAIRING CODE:', code);
-    } catch(e) {
-      console.log('استنى الريستارت الجاي وهيطلع الكود');
-    }
-  }
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if(!msg.message || msg.key.fromMe) return;
     const text = msg.message.conversation;
     if(text === '.ping')
-      await sock.sendMessage(msg.key.remoteJid, { text: 'pong شغال' });
+      await sock.sendMessage(msg.key.remoteJid, { text: 'pong شغال يا زعيم' });
   });
 }
 start();

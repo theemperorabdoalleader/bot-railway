@@ -1,33 +1,45 @@
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
-const qrcode = require('qrcode-terminal');
+const { default: makeWASocket, DisconnectReason, useMultiF>
+const qrcode = require('qrcode-terminal')
 
-async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState('/app/session3'); // غيرنا الاسم تاني عشان نبدأ نضيف
+async function startBot() {
+    const { state, saveCreds } = await useMultiFileAuthSta>
 
-  const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: true // السطر السحري ده هيطبع المربعات
-  });
+    const sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: false // هنطبعه يدوي عشان Termux
+    })
 
-  sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', saveCreds)
 
-  sock.ev.on('connection.update', ({ connection, qr }) => {
-    if(qr) {
-      console.log('\n امسح المربعات دي بسرعة \n');
-      qrcode.generate(qr, { small: true }); // هنا بيطبع المربعات
-      console.log('\n امسح في 20 ثانية \n');
-    }
-    if(connection === 'open') {
-      console.log('البوت اشتغل ✅ خلاص كده');
-    }
-  });
+    // هنا بقى الطباعة
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update
 
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0];
-    if(!msg.message || msg.key.fromMe) return;
-    const text = msg.message.conversation;
-    if(text === '.ping')
-      await sock.sendMessage(msg.key.remoteJid, { text: 'pong شغال يا زعيم' });
-  });
+        if(qr) {
+            console.log('امسح الكود ده بموبايل تاني:')
+            qrcode.generate(qr, { small: true })
+        }
+
+        if(connection === 'close') {
+            const shouldReconnect = lastDisconnect.error?.>
+            console.log('الاتصال فصل...', shouldReconnect)
+            if(shouldReconnect) startBot()
+        } else if(connection === 'open') {
+            console.log('✅ البوت اشتغل بنجاح واتصل بالوات>
+        }
+    })
+
+    sock.ev.on('messages.upsert', async m => {
+        const msg = m.messages[0]
+        if (!msg.message || msg.key.fromMe) return
+
+        const text = msg.message.conversation || msg.messa>
+        const from = msg.key.remoteJid
+
+        if (text === '.هاي') {
+            await sock.sendMessage(from, { text: 'اشتغلت ي>
+        }
+    })
 }
-start();
+
+startBot()

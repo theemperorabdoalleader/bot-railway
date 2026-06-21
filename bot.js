@@ -23,7 +23,7 @@ async function startBot() {
     
     const qrBuffer = await QRCode.toBuffer(qr, { width: 300 })
     
-    const myNumber = '2010XXXXXXXX@s.whatsapp.net' 
+    const myNumber = '201149182286@s.whatsapp.net' 
     
     await sock.sendMessage(myNumber, {
         image: qrBuffer,

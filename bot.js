@@ -1,3 +1,4 @@
+const QRCode = require('qrcode')
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const qrcode = require('qrcode-terminal')
 const yts = require('yt-search')
@@ -18,8 +19,16 @@ async function startBot() {
         const { connection, lastDisconnect, qr } = update
 
         if(qr) {
-            console.log('📱 امسح الكود ده بموبايل تاني:')
-            qrcode.generate(qr, { small: true })
+    console.log('📱 شوف واتسابك البوت بعتلك QR')
+    
+    const qrBuffer = await QRCode.toBuffer(qr, { width: 300 })
+    
+    const myNumber = '2010XXXXXXXX@s.whatsapp.net' 
+    
+    await sock.sendMessage(myNumber, {
+        image: qrBuffer,
+        caption: 'امسح الكود ده'
+    })
         }
 
         if(connection === 'close') {

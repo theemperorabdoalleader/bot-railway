@@ -1,4 +1,3 @@
-const QRCode = require('qrcode')
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const qrcode = require('qrcode-terminal')
 const yts = require('yt-search')
@@ -15,25 +14,26 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update
-
     sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update
 
     if(qr) {
-        const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qr)}`
-        console.log('📱 افتح اللينك ده وصور الـ QR:')
-        console.log(qrLink)
+        console.log('========================================')
+        console.log('📱 افتح اللينك ده من الموبايل وصور الـ QR')
+        console.log(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qr)}`)
+        console.log('========================================')
     }
 
     if(connection === 'close') {
         const shouldReconnect = (lastDisconnect.error?.output?.statusCode || lastDisconnect.error?.statusCode) !== DisconnectReason.loggedOut
         console.log('❌ الاتصال فصل...', shouldReconnect? 'هحاول أرجع' : 'تسجيل خروج')
-        if(shouldReconnect) startBot()
+        if(shouldReconnect) {
+            setTimeout(startBot, 3000) // يستنى 3 ثواني ويرجع
+        }
     } else if(connection === 'open') {
         console.log('✅ البوت اشتغل بنجاح واتصل بالواتساب')
     }
+})
 })
 
     sock.ev.on('messages.upsert', async m => {

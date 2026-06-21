@@ -9,32 +9,79 @@ const SUPA_URL = 'https://ibazogakqsewnqweohzu.supabase.co'
 const SUPA_KEY = 'sb_publishable_Ukzz_htzOKaZzbUayP7STg_yQAJxao-'
 const supabase = createClient(SUPA_URL, SUPA_KEY)
 
-// 1. دي بتجيب السيشن من Supabase قبل ما البوت يبدأ
+// تحميل السيشن من Supabase
 async function loadSession() {
     if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR)
-
     const { data } = await supabase.from('sessions').select('data').eq('id', 'baileys').single()
     if (data?.data && data.data!== '{}') {
         const files = JSON.parse(data.data)
         for (const [name, content] of Object.entries(files)) {
             fs.writeFileSync(path.join(SESSION_DIR, name), Buffer.from(content, 'base64'))
         }
-        console.log('✅ السيشن اتحمل من Supabase')
+        console.log('✅ السيشن نزل من Supabase')
     }
 }
 
-// 2. دي بتحفظ السيشن في Supabase كل ما يتغير
+// حفظ السيشن في Supabase
 async function saveSession() {
     const files = {}
     if (fs.existsSync(SESSION_DIR)) {
         fs.readdirSync(SESSION_DIR).forEach(file => {
-            const content = fs.readFileSync(path.join(SESSION_DIR, file))
-            files[file] = content.toString('base64')
+            files = fs.readFileSync(path.join(SESSION_DIR, file)).toString('base64')
         })
     }
     await supabase.from('sessions').upsert({ id: 'baileys', data: JSON.stringify(files) })
 }
 
+// تشغيل البوت
+async function startBot() {
+    await loadSession()
+
+    const { state, saveCreds } = await require('@whiskeysockets/baileys').useMultiFileAuthState(SESSION_DIR)
+
+    const sock = makeWASocket({
+        auth: state,
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false
+    })
+
+    sock.ev.on('creds.update', async () => {
+        saveCreds()
+        await saveSession()
+    })
+
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update
+
+        if(qr) {
+            console.log('📱 QR هنا: https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(qr))
+        }
+
+        if(connection === 'close') {
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode!== DisconnectReason.loggedOut
+            console.log('❌ الاتصال فصل...', shouldReconnect? 'هحاول أرجع' : 'تسجيل خروج')
+            if(shouldReconnect) setTimeout(startBot, 3000)
+        } else if(connection === 'open') {
+            console.log('✅ البوت اشتغل واتصل')
+            await saveSession()
+        }
+    })
+
+    sock.ev.on('messages.upsert', async (m) => {
+        const msg = m.messages[0]
+        if(!msg.message || msg.key.fromMe) return
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text
+        const sender = msg.key.remoteJid
+
+        if(text === '.stop' && sender === '201149182286@c.us') {
+            await saveSession()
+            await sock.sendMessage(sender, { text: 'تمام هنام 💤' })
+            setTimeout(() => process.exit(0), 3000)
+        }
+    })
+}
+
+startBot()
 // 3. دي بتعمل state للـ Baileys من الملفات المحلية
 async function getAuthState() {
     if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR)

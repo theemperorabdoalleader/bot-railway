@@ -1,5 +1,3 @@
-const fs = require('fs')
-if(fs.existsSync('./session')) fs.rmSync('./session', {recursive: true, force: true})
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const pino = require('pino')
 const fs = require('fs')

@@ -44,6 +44,10 @@ async function startBot() {
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text
         if(text === '.ping') {
             await sock.sendMessage(msg.key.remoteJid, { text: 'pong 🏓' })
+       }
+        if (text === '.stop' && sender === '2010xxxxxxxx@c.us') {
+    await sock.sendMessage(sender, { text: 'تمام هنام 💤' })
+    setTimeout(() => process.exit(0), 3000)
         }
     })
 }

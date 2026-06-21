@@ -15,30 +15,30 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update
+    sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update
 
-        if(qr) {
-    console.log('📱 شوف واتسابك البوت بعتلك QR')
-    
-    const qrBuffer = await QRCode.toBuffer(qr, { width: 300 })
-    
-    const myNumber = '201149182286@s.whatsapp.net' 
-    
-    await sock.sendMessage(myNumber, {
-        image: qrBuffer,
-        caption: 'امسح الكود ده'
-    })
-        }
+    if(qr) {
+        console.log('📱 شوف واتسابك البوت بعتلك QR')
+        
+        const qrBuffer = await QRCode.toBuffer(qr, { width: 300 })
+        
+        const myNumber = '201149182286@s.whatsapp.net' // حط رقمك هنا
+        
+        await sock.sendMessage(myNumber, {
+            image: qrBuffer,
+            caption: 'امسح الكود ده'
+        }).catch(err => console.log('حط رقمك صح', err))
+    }
 
-        if(connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error?.output?.statusCode || lastDisconnect.error?.statusCode)!== DisconnectReason.loggedOut
-            console.log('❌ الاتصال فصل...', shouldReconnect? 'هحاول أرجع' : 'تسجيل خروج')
-            if(shouldReconnect) startBot()
-        } else if(connection === 'open') {
-            console.log('✅ البوت اشتغل بنجاح واتصل بالواتساب')
-        }
-    })
+    if(connection === 'close') {
+        const shouldReconnect = (lastDisconnect.error?.output?.statusCode || lastDisconnect.error?.statusCode) !== DisconnectReason.loggedOut
+        console.log('❌ الاتصال فصل...', shouldReconnect? 'هحاول أرجع' : 'تسجيل خروج')
+        if(shouldReconnect) startBot()
+    } else if(connection === 'open') {
+        console.log('✅ البوت اشتغل بنجاح واتصل بالواتساب')
+    }
+})
 
     sock.ev.on('messages.upsert', async m => {
         const msg = m.messages[0]

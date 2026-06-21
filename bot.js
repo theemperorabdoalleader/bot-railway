@@ -27,6 +27,16 @@ async function startBot() {
             console.log('✅ البوت اشتغل بنجاح')
         }
     })
+    // عشان Railway ميقتلش البوت
+process.on('SIGTERM', () => {
+    console.log('Railway قفلني بس انا هقوم تاني')
+    process.exit(0)
+})
+
+// KeepAlive كل 20 ثانية
+setInterval(() => {
+    console.log('انا صاحي اهو 💪')
+}, 20000)
 
     sock.ev.on('messages.upsert', async (m) => {
         const msg = m.messages[0]

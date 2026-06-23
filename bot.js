@@ -3,7 +3,8 @@ const pino = require('pino')
 const axios = require('axios')
 
 async function startBot() {
-
+process.setMaxListeners(20)
+    
     const { state, saveCreds } = await useMultiFileAuthState('./session')
 
     const sock = makeWASocket({
@@ -20,10 +21,11 @@ async function startBot() {
         if (qr) console.log(qr)
 
         if (connection === 'close') {
-            const shouldReconnect =
-                lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
-
-            if (shouldReconnect) startBot()
+    const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+    console.log('Connection closed. Reconnecting...', shouldReconnect)
+    if (shouldReconnect) {
+        setTimeout(() => startBot(), 3000) // استنى 3 ثواني قبل ما تعيد
+    }
         }
 
         if (connection === 'open') {

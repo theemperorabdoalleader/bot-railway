@@ -1,12 +1,14 @@
 {
-  "name": "whatsapp-bot",
+  "name": "whatsapp-bot-pro",
   "version": "1.0.0",
   "main": "bot.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0-rc.13",
-    "pino": "^8.16.2"
+    "@whiskeysockets/baileys": "^6.7.0",
+    "axios": "^1.6.0",
+    "pino": "^8.0.0"
   }
 }

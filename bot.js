@@ -1,5 +1,6 @@
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const pino = require('pino')
+const axios = require('axios')
 
 async function startBot() {
 
@@ -12,99 +13,133 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds)
 
-    // ====== فونت احترافي ======
-    function toFancy(text) {
-        const map = {
-            a:'𝖺', b:'𝖻', c:'𝖼', d:'𝖽', e:'𝖾',
-            f:'𝖿', g:'𝗀', h:'𝗁', i:'𝗂', j:'𝗃',
-            k:'𝗄', l:'𝗅', m:'𝗆', n:'𝗇', o:'𝗈',
-            p:'𝗉', q:'𝗊', r:'𝗋', s:'𝗌', t:'𝗍',
-            u:'𝗎', v:'𝗏', w:'𝗐', x:'𝗑', y:'𝗒', z:'𝗓'
-        }
-        return text.split('').map(c => map[c] || c).join('')
-    }
-
-    async function send(jid, text) {
-        return sock.sendMessage(jid, {
-            text: toFancy(text)
-        })
-    }
-
+    // ===== reconnect =====
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update
 
-        if (qr) {
-            console.log('📱 QR Code:')
-            console.log(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qr)}`)
-        }
+        if (qr) console.log(qr)
 
         if (connection === 'close') {
             const shouldReconnect =
                 lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
 
-            console.log('❌ فصل الاتصال', shouldReconnect ? 'هحاول تاني' : 'Logged out')
-
             if (shouldReconnect) startBot()
         }
 
         if (connection === 'open') {
-            console.log('✅ البوت اشتغل')
+            console.log('BOT ONLINE 🔥')
         }
     })
 
-    // ====== الرسائل ======
+    const send = (jid, text) => sock.sendMessage(jid, { text })
+
+    // =========================
+    // 🖼️ PEXELS IMAGES API
+    // =========================
+    async function getImages(query, limit = 3) {
+        try {
+            const API_KEY = process.env.PEXELS_API_KEY
+
+            const res = await axios.get('https://api.pexels.com/v1/search', {
+                headers: {
+                    Authorization: API_KEY
+                },
+                params: {
+                    query,
+                    per_page: limit
+                }
+            })
+
+            return res.data.photos.map(p => p.src.original)
+        } catch (e) {
+            return []
+        }
+    }
+
+    // =========================
+    // 📩 MESSAGES
+    // =========================
     sock.ev.on('messages.upsert', async (m) => {
 
         const msg = m.messages[0]
         if (!msg.message || msg.key.fromMe) return
 
+        const jid = msg.key.remoteJid
+
         const text =
             msg.message.conversation ||
             msg.message.extendedTextMessage?.text ||
-            ""
+            ''
 
-        const args = text.trim().split(" ")
-        const command = args[0]?.toLowerCase()
-        const query = args.slice(1).join(" ")
+        const args = text.trim().split(' ')
+        const cmd = args[0].toLowerCase()
+        const query = args.slice(1).join(' ')
 
-        const jid = msg.key.remoteJid
+        // =========================
+        // 🖼️ .صور COMMAND
+        // =========================
+        if (cmd === '.صور') {
 
-        if (!command) return
+            if (!query) return send(jid, 'اكتب حاجة بعد الأمر 🖼️')
 
-        // ====== الأوامر ======
+            const parts = query.split(' ')
+            let last = parts[parts.length - 1]
+            let num = parseInt(last)
 
-        switch (command) {
+            let isNumber = !isNaN(num)
 
-            case '.ping':
-                await send(jid, 'pong 🏓')
-                break
+            let limit = isNumber ? num : 3
+            let search = isNumber ? parts.slice(0, -1).join(' ') : query
 
-            case '.اوامر':
-                await send(jid, `
-📜 الأوامر:
+            if (limit < 1) limit = 1
+            if (limit > 10) limit = 10
 
-🖼️ .صور
-🎬 .اديت
-💎 .اقوى_اديت
-🎵 .اغنية
-                `)
-                break
+            await send(jid, `🖼️ جاري جلب ${limit} صور لـ: ${search}`)
 
-            default:
-                break
+            const images = await getImages(search, limit)
+
+            if (!images.length) {
+                return send(jid, 'مفيش صور ❌')
+            }
+
+            for (let img of images) {
+                await sock.sendMessage(jid, {
+                    image: { url: img },
+                    caption: search
+                })
+            }
+
+            return
+        }
+
+        // =========================
+        // 🔥 PING
+        // =========================
+        if (cmd === '.ping') {
+            return send(jid, 'pong 🏓')
+        }
+
+        // =========================
+        // 🧠 HELP
+        // =========================
+        if (cmd === '.help') {
+            return send(jid, `
+🤖 BOT:
+
+🖼️ .صور <اسم> <1-10>
+🔥 .ping
+            `)
+        }
+
+        // =========================
+        // 💬 AUTO REPLY
+        // =========================
+        if (text.includes('سلام')) {
+            return send(jid, 'وعليكم السلام 👋')
         }
     })
 
-    // حماية Railway
-    process.on('SIGTERM', () => {
-        console.log('Railway قفلني')
-        process.exit(0)
-    })
-
-    // keep alive
-    setInterval(() => {
-        console.log('alive 💪')
-    }, 20000)
+    process.on('SIGTERM', () => process.exit(0))
 }
 
 startBot()

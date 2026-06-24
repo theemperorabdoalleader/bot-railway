@@ -20,31 +20,25 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds)
 
     sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update
+    const { connection, lastDisconnect, qr } = update
 
-        if (qr) {
-            console.log('\n=================================')
-            console.log('انسخ الرابط ده وافتحه في المتصفح هيطلعلك QR:')
-            const qrImage = await QRCode.toDataURL(qr)
-            console.log(qrImage)
-            console.log('=================================\n')
-        }
+    if (qr) {
+        console.log('\n=================================')
+        console.log('انسخ الرابط ده وافتحه في المتصفح هيطلعلك QR:')
+        const qrImage = await QRCode.toDataURL(qr)
+        console.log(qrImage)
+        console.log('=================================\n')
+    }
 
-        if (connection === 'close') {
-    console.log(lastDisconnect)
-    console.log(lastDisconnect?.error?.message)
-        }
-            if (statusCode === 405) { // بقى جوا الـ if بتاع close
-                console.log('واتساب رفض السيشن. امسح فولدر session واعمل Deploy تاني')
-                return
-            }
-        }
+    if (connection === 'close') {
+        console.log(lastDisconnect)
+        console.log(lastDisconnect?.error?.message)
+    }
 
-        if (connection === 'open') { // بقى جوا الـ sock.ev.on
-            console.log('اشتغل يا معلم 🔥🔥')
-        }
-    }); // قفلة sock.ev.on بقت هنا بعد كل الـ if
-
+    if (connection === 'open') {
+        console.log('اشتغل يا معلم 🔥🔥')
+    }
+})
     const send = (jid, text) => sock.sendMessage(jid, { text })
 
     async function getImages(query, limit = 3) {

@@ -120,11 +120,50 @@ process.setMaxListeners(20)
         if (cmd === '.ping') {
             return send(jid, 'pong 🏓')
         }
+        if (cmd === '.نرد') {
+    const num = Math.floor(Math.random() * 6) + 1
+    return send(jid, `🎲 النتيجة: ${num}`)
+}
+
+if (cmd === '.عملة') {
+    const result = Math.random() < 0.5 ? '🪙 صورة' : '🪙 كتابة'
+    return send(jid, result)
+}
+
+if (cmd === '.حظ') {
+    const luck = Math.floor(Math.random() * 101)
+    return send(jid, `🍀 نسبة حظك: ${luck}%`)
+}
+
+if (cmd === '.حجر' || cmd === '.ورقة' || cmd === '.مقص') {
+
+    const choices = ['حجر', 'ورقة', 'مقص']
+    const bot = choices[Math.floor(Math.random() * choices.length)]
+
+    const player = cmd.replace('.', '')
+
+    let result = '🤝 تعادل'
+
+    if (
+        (player === 'حجر' && bot === 'مقص') ||
+        (player === 'ورقة' && bot === 'حجر') ||
+        (player === 'مقص' && bot === 'ورقة')
+    ) {
+        result = '✅ فزت'
+    } else if (player !== bot) {
+        result = '❌ خسرت'
+    }
+
+    return send(
+        jid,
+        `👤 أنت: ${player}\n🤖 البوت: ${bot}\n\n${result}`
+    )
+}
 
         // =========================
         // 🧠 HELP
         // =========================
-        if (cmd === '.help') {
+        if (cmd === '.اوامر') {
             return send(jid, `
 🤖 BOT:
 

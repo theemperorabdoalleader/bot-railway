@@ -60,7 +60,6 @@ async function startBot() {
     console.log('اشتغل يا معلم 🔥 المسار:', sessionPath)
 }
 }); // قفلة sock.ev.on
-} // قفلة async function startBot
     
     const send = (jid, text) => sock.sendMessage(jid, { text })
 

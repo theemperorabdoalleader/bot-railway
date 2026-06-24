@@ -46,7 +46,6 @@ async function startBot() {
         if (connection === 'open') {
             console.log('اشتغل يا معلم 🔥🔥')
         }
-    };
 
     const send = (jid, text) => sock.sendMessage(jid, { text })
 

@@ -11,10 +11,11 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./session')
 
     const sock = makeWASocket({
-        auth: state,
-        logger: pino({ level: 'silent' }),
-        printQRInTerminal: false
-    })
+    auth: state,
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    browser: ['Chrome', 'Android', '1.0.0']
+})
 
     sock.ev.on('creds.update', saveCreds)
 
@@ -35,7 +36,7 @@ async function startBot() {
 
             if (statusCode === 405) { // بقى جوا الـ if بتاع close
                 console.log('واتساب رفض السيشن. امسح فولدر session واعمل Deploy تاني')
-                process.exit(1)
+                return
             }
         }
 

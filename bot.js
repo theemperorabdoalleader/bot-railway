@@ -3,6 +3,7 @@ const pino = require('pino')
 const axios = require('axios')
 
 async function startBot() {
+    process.on('SIGTERM', () => process.exit(0))
     
     const { state, saveCreds } = await useMultiFileAuthState('./session')
 
@@ -179,7 +180,6 @@ if (cmd === '.حجر' || cmd === '.ورقة' || cmd === '.مقص') {
         }
     })
 
-    process.on('SIGTERM', () => process.exit(0))
 }
 
 startBot()

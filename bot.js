@@ -1,7 +1,7 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const pino = require('pino')
 const axios = require('axios')
-const QRCode = require('qrcode') // <-- المكتبة الجديدة
+const QRCode = require('qrcode')
 
 process.on('SIGTERM', () => process.exit(0))
 
@@ -13,7 +13,7 @@ async function startBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false // قفلنا الطباعة العادية
+        printQRInTerminal: false
     })
 
     sock.ev.on('creds.update', saveCreds)
@@ -24,28 +24,25 @@ async function startBot() {
         if (qr) {
             console.log('\n=================================')
             console.log('انسخ الرابط ده وافتحه في المتصفح هيطلعلك QR:')
-
-            // نحول الـ QR لصورة Base64
             const qrImage = await QRCode.toDataURL(qr)
             console.log(qrImage)
-
             console.log('=================================\n')
-            console.log('لو الرابط طويل انسخه كله وحطه في المتصفح')
         }
 
         if (connection === 'close') {
-    console.dir(lastDisconnect, { depth: null })
-        }
+            const statusCode = lastDisconnect?.error?.output?.statusCode // عرفناه هنا
+            console.log('اتقفل. الكود:', statusCode)
 
-            if (statusCode === 405) {
+            if (statusCode === 405) { // بقى جوا الـ if بتاع close
                 console.log('واتساب رفض السيشن. امسح فولدر session واعمل Deploy تاني')
                 process.exit(1)
             }
-        })
+        }
 
-        if (connection === 'open') {
+        if (connection === 'open') { // بقى جوا الـ sock.ev.on
             console.log('اشتغل يا معلم 🔥🔥')
         }
+    }); // قفلة sock.ev.on بقت هنا بعد كل الـ if
 
     const send = (jid, text) => sock.sendMessage(jid, { text })
 

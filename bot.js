@@ -1,13 +1,22 @@
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const pino = require('pino')
+const fs = require('fs')
 const axios = require('axios')
 
 process.on('SIGTERM', () => process.exit(0))
 
 let sock
+let sessionPath = './session' // هنبدأ بالاساسي
 
 async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('./session')
+    // لو فولدر السيشن بايظ، غير المسار تلقائي
+    if (fs.existsSync(sessionPath) && fs.readdirSync(sessionPath).length > 0) {
+        console.log('لقيت سيشن قديم، هجرب اشغله...')
+    } else {
+        console.log('مفيش سيشن، هعمل واحد جديد')
+    }
+
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
 
     sock = makeWASocket({
         auth: state,
@@ -16,23 +25,40 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
 
         if (qr) {
-            console.log('SCAN THIS QR:', qr)
+            console.log('=================================')
+            console.log('QR CODE:', qr)
+            console.log('=================================')
         }
 
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut
-            console.log('Connection closed. Code:', statusCode, 'Reconnect:', shouldReconnect)
+
+            console.log('اتقفل. الكود:', statusCode)
+
+            // لو 405 يعني السيشن باظ
+            if (statusCode === 405 || statusCode === 401) {
+                console.log('السيشن بايظ! هعمل فولدر جديد...')
+
+                // غير المسار لـ session2
+                sessionPath = './session2'
+
+                // امسح القديم عشان ميعملش لخبطة
+                if (fs.existsSync('./session')) {
+                    fs.rmSync('./session', { recursive: true, force: true })
+                }
+
+                // شغل البوت تاني بالمسار الجديد
+                setTimeout(() => startBot(), 2000)
+            }
         }
 
         if (connection === 'open') {
-            console.log('BOT ONLINE 🔥')
-        }
-    }); // <-- القفلة دي اللي كانت ناقصة
+            console.log('اشتغل يا معلم 🔥 المسار:', sessionPath)
+        });
     
     const send = (jid, text) => sock.sendMessage(jid, { text })
 

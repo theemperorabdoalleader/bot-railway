@@ -2,10 +2,9 @@ const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = requi
 const pino = require('pino')
 const axios = require('axios')
 
-// 1. طلع ده برا
 process.on('SIGTERM', () => process.exit(0))
 
-let sock // خلي السوكت جلوبال
+let sock
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./session')
@@ -21,22 +20,20 @@ async function startBot() {
         const { connection, lastDisconnect, qr } = update
 
         if (qr) {
-            console.log('SCAN THIS QR:', qr) // عشان تشوفه في Railway Console
+            console.log('SCAN THIS QR:', qr)
         }
 
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode
             const shouldReconnect = statusCode !== DisconnectReason.loggedOut
-            
             console.log('Connection closed. Code:', statusCode, 'Reconnect:', shouldReconnect)
-            
-            // 2. شيل startBot() من هنا خالص
         }
 
         if (connection === 'open') {
-            console.log('BOT ONLINE')
+            console.log('BOT ONLINE 🔥')
         }
-        
+    }); // <-- القفلة دي اللي كانت ناقصة
+    
     const send = (jid, text) => sock.sendMessage(jid, { text })
 
     // =========================

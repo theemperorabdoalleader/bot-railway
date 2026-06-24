@@ -1,6 +1,7 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const pino = require('pino')
 const axios = require('axios')
+const QRCode = require('qrcode') // <-- المكتبة الجديدة
 
 process.on('SIGTERM', () => process.exit(0))
 
@@ -11,29 +12,34 @@ async function startBot() {
 
     const sock = makeWASocket({
         auth: state,
-        logger: pino({ level: 'silent' })
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false // قفلنا الطباعة العادية
     })
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
 
         if (qr) {
             console.log('\n=================================')
-            console.log('انسخ الكود ده واعمل Scan:')
-            console.log(qr)
+            console.log('انسخ الرابط ده وافتحه في المتصفح هيطلعلك QR:')
+
+            // نحول الـ QR لصورة Base64
+            const qrImage = await QRCode.toDataURL(qr)
+            console.log(qrImage)
+
             console.log('=================================\n')
+            console.log('لو الرابط طويل انسخه كله وحطه في المتصفح')
         }
 
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode
             console.log('اتقفل. الكود:', statusCode)
 
-            // لو 405 وقف المحاولات عشان ميعملش لوب
             if (statusCode === 405) {
-                console.log('واتساب رفض السيشن. امسح فولدر session يدوي واعمل Deploy تاني')
-                process.exit(1) // وقف البوت عشان ميعملش لوب
+                console.log('واتساب رفض السيشن. امسح فولدر session واعمل Deploy تاني')
+                process.exit(1)
             }
         }
 

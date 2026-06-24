@@ -31,9 +31,9 @@ async function startBot() {
         }
 
         if (connection === 'close') {
-            const statusCode = lastDisconnect?.error?.output?.statusCode // عرفناه هنا
-            console.log('اتقفل. الكود:', statusCode)
-
+    console.log(lastDisconnect)
+    console.log(lastDisconnect?.error?.message)
+        }
             if (statusCode === 405) { // بقى جوا الـ if بتاع close
                 console.log('واتساب رفض السيشن. امسح فولدر session واعمل Deploy تاني')
                 return

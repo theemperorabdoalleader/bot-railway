@@ -3,7 +3,6 @@ const pino = require('pino')
 const axios = require('axios')
 
 async function startBot() {
-process.setMaxListeners(50)
     
     const { state, saveCreds } = await useMultiFileAuthState('./session')
 

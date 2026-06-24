@@ -24,7 +24,7 @@ process.setMaxListeners(50)
     const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
     console.log('Connection closed. Reconnecting...', shouldReconnect)
     if (shouldReconnect) {
-        setTimeout(() => startBot(), 3000) // استنى 3 ثواني قبل ما تعيد
+        startBot() // شيل الـ setTimeout خالص
     }
         }
 

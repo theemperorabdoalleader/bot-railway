@@ -1,38 +1,43 @@
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys')
+const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const pino = require('pino')
 const axios = require('axios')
 
+// 1. طلع ده برا
+process.on('SIGTERM', () => process.exit(0))
+
+let sock // خلي السوكت جلوبال
+
 async function startBot() {
-    process.on('SIGTERM', () => process.exit(0))
-    
     const { state, saveCreds } = await useMultiFileAuthState('./session')
 
-    const sock = makeWASocket({
+    sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' })
     })
 
     sock.ev.on('creds.update', saveCreds)
 
-    // ===== reconnect =====
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update
 
-        if (qr) console.log(qr)
+        if (qr) {
+            console.log('SCAN THIS QR:', qr) // عشان تشوفه في Railway Console
+        }
 
         if (connection === 'close') {
-    const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
-    console.log('Connection closed. Reconnecting...', shouldReconnect)
-    if (shouldReconnect) {
-        startBot() // شيل الـ setTimeout خالص
-    }
+            const statusCode = lastDisconnect?.error?.output?.statusCode
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+            
+            console.log('Connection closed. Code:', statusCode, 'Reconnect:', shouldReconnect)
+            
+            // 2. شيل startBot() من هنا خالص
         }
 
         if (connection === 'open') {
-            console.log('BOT ONLINE 🔥')
+            console.log('BOT ONLINE')
         }
-    })
-
+        
     const send = (jid, text) => sock.sendMessage(jid, { text })
 
     // =========================

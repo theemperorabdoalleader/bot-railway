@@ -7,8 +7,9 @@
     "start": "node bot.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.0",
-    "axios": "^1.6.0",
-    "pino": "^8.0.0"
+    "@whiskeysockets/baileys": "^6.7.14",
+    "pino": "^8.17.2",
+    "axios": "^1.6.2",
+    "qrcode": "^1.5.3"
   }
 }

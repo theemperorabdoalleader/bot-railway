@@ -41,7 +41,7 @@ async function startBot() {
                 console.log('واتساب رفض السيشن. امسح فولدر session واعمل Deploy تاني')
                 process.exit(1)
             }
-        }
+        })
 
         if (connection === 'open') {
             console.log('اشتغل يا معلم 🔥🔥')

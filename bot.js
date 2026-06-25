@@ -29,13 +29,13 @@ async function startBot() {
     })
 
     sock.ev.on('creds.update', async () => {
-        await saveCreds()
-        const files = {}
-        const filenames = fs.readdirSync(SESSION_FOLDER)
-        for (const file of filenames) {
-            const content = fs.readFileSync(path.join(SESSION_FOLDER, file))
-            files = content.toString('base64')
-        }
+    await saveCreds()
+    let files = {}  // خليتها let عشان الامان
+    const filenames = fs.readdirSync(SESSION_FOLDER)
+    for (const file of filenames) {
+        const content = fs.readFileSync(path.join(SESSION_FOLDER, file))
+        files = content.toString('base64')
+    }
         const sessionData = Buffer.from(JSON.stringify(files)).toString('base64')
         console.log('\n========== انسخ ده كله في SESSION_DATA ==========')
         console.log(sessionData)

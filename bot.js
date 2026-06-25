@@ -45,8 +45,11 @@ async function startBot() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
         if (qr) {
-            const qrImage = await qrcode.toDataURL(qr)
-            console.log('QR:', qrImage)
+    console.log('\n========== انسخ اللي تحت وحطه في المتصفح ==========')
+    const qrImage = await qrcode.toDataURL(qr)
+    const cleanQR = qrImage.replace('data:image/png;base64,', '')
+    console.log(cleanQR)
+    console.log('=================================================\n')
         }
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode

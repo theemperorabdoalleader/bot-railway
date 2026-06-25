@@ -93,16 +93,42 @@ async function startBot() {
         }
 
         // 5..ستيكر - رد على صورة
-        else if (text === '.ستيكر') {
-            if (msg.message.imageMessage || msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage) {
-                await sock.sendMessage(from, { text: 'ثانية بحولهولك ستيكر... ⏳' })
-                const buffer = await downloadMediaMessage(msg.message.extendedTextMessage?.contextInfo?.quotedMessage? msg.message.extendedTextMessage.contextInfo.quotedMessage : msg.message, 'buffer', {})
-                await sock.sendMessage(from, { sticker: buffer })
-            } else {
-                await sock.sendMessage(from, { text: 'رد على صورة واكتب.ستيكر' })
-            }
-        }
+else if (text === '.ستيكر') {
+    const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
+    if (msg.message.imageMessage || quoted?.imageMessage) {
+        await sock.sendMessage(from, { text: 'ثانية بحولهولك ستيكر... ⏳' })
+        try {
+            const buffer = await downloadMediaMessage(quoted ? quoted : msg.message, 'buffer', {})
+            
+            // تحويل لwebp + اضافة بيانات الاستيكر
+            const webpBuffer = await sharp(buffer)
+                .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .webp({ quality: 80 })
+                .toBuffer()
 
+            const img = new webp.Image()
+            const exifAttr = Buffer.from([
+                0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00,
+                0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x16, 0x00, 0x00, 0x00
+            ])
+            const json = { 'sticker-pack-name': 'البوت', 'sticker-pack-publisher': name }
+            const exif = Buffer.from(JSON.stringify(json))
+            exif.writeUIntLE(exif.length, 14, 4)
+            img.exif = Buffer.concat([exifAttr, exif])
+            
+            await img.load(webpBuffer)
+            const stickerBuffer = await img.save(null)
+            
+            await sock.sendMessage(from, { sticker: stickerBuffer })
+        } catch (e) {
+            console.log(e)
+            await sock.sendMessage(from, { text: 'فشل التحويل 😢 جرب صورة تانية' })
+        }
+    } else {
+        await sock.sendMessage(from, { text: 'رد على صورة واكتب.ستيكر' })
+    }
+        }
         // 6..ترجمة
         else if (text.startsWith('.ترجمة')) {
             const txt = text.replace('.ترجمة', '').trim()

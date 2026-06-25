@@ -4,6 +4,8 @@ const qrcode = require('qrcode')
 const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
+const sharp = require('sharp')
+const webp = require('node-webpmux')
 
 const SESSION_FOLDER = './session'
 

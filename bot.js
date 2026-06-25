@@ -1,143 +1,43 @@
-const { default: makeWASocket, useSingleFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
-const pino = require('pino')
-const axios = require('axios')
-const QRCode = require('qrcode')
-const fs = require('fs')
-
-process.on('SIGTERM', () => process.exit(0))
-
-const SESSION_FILE = './session.json'
+const { default: makeWASocket, DisconnectReason, useMultiF>
+const qrcode = require('qrcode-terminal')
 
 async function startBot() {
-    console.log('بشغل البوت...')
-
-    // لو فيه SESSION_DATA في ENV حمّلها في ملف
-    if (process.env.SESSION_DATA &&!fs.existsSync(SESSION_FILE)) {
-        fs.writeFileSync(SESSION_FILE, Buffer.from(process.env.SESSION_DATA, 'base64'))
-        console.log('تم تحميل السيشن من ENV')
-    }
-
-    const { state, saveCreds } = useSingleFileAuthState(SESSION_FILE)
-
-    // كل ما السيشن يتحدث، احفظه Base64 في اللوج عشان تاخده تحطه في ENV
-    saveCreds = () => {
-        state.saveCreds()
-        const sessionData = fs.readFileSync(SESSION_FILE, 'base64')
-        console.log('\n=================================')
-        console.log('انسخ ده كله وحطه في SESSION_DATA في Railway:')
-        console.log(sessionData)
-        console.log('=================================\n')
-    }
+    const { state, saveCreds } = await useMultiFileAuthSta>
 
     const sock = makeWASocket({
         auth: state,
-        logger: pino({ level: 'silent' }),
-        printQRInTerminal: false,
-        browser: ['Chrome', 'Android', '1.0.0']
+        printQRInTerminal: false // هنطبعه يدوي عشان Termux
     })
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('connection.update', async (update) => {
+    // هنا بقى الطباعة
+    sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update
 
-        if (qr) {
-            console.log('\n=================================')
-            console.log('اول مرة بس - انسخ الرابط ده:')
-            const qrImage = await QRCode.toDataURL(qr)
-            console.log(qrImage)
-            console.log('=================================\n')
+        if(qr) {
+            console.log('امسح الكود ده بموبايل تاني:')
+            qrcode.generate(qr, { small: true })
         }
 
-        if (connection === 'close') {
-            const statusCode = lastDisconnect?.error?.output?.statusCode
-            console.log('اتقفل. الكود:', statusCode)
-
-            // لو 401 يعني السيشن باظ، امسح الـ ENV واعمل Deploy تاني
-            if (statusCode === 401) {
-                console.log('السيشن باظ! امسح SESSION_DATA من Railway واعمل Deploy')
-                process.exit(1)
-            }
-        }
-
-        if (connection === 'open') {
-            console.log('اشتغل يا معلم 🔥🔥 السيشن اتحفظ في ENV خلاص')
+        if(connection === 'close') {
+            const shouldReconnect = lastDisconnect.error?.>
+            console.log('الاتصال فصل...', shouldReconnect)
+            if(shouldReconnect) startBot()
+        } else if(connection === 'open') {
+            console.log('✅ البوت اشتغل بنجاح واتصل بالوات>
         }
     })
 
-    const send = (jid, text) => sock.sendMessage(jid, { text })
-
-    async function getImages(query, limit = 3) {
-        try {
-            const API_KEY = process.env.PEXELS_API_KEY
-            const res = await axios.get('https://api.pexels.com/v1/search', {
-                headers: { Authorization: API_KEY },
-                params: { query, per_page: limit }
-            })
-            return res.data.photos.map(p => p.src.original)
-        } catch (e) {
-            return []
-        }
-    }
-
-    sock.ev.on('messages.upsert', async (m) => {
+    sock.ev.on('messages.upsert', async m => {
         const msg = m.messages[0]
         if (!msg.message || msg.key.fromMe) return
-        const jid = msg.key.remoteJid
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
-        const args = text.trim().split(' ')
-        const cmd = args[0].toLowerCase()
-        const query = args.slice(1).join(' ')
 
-        if (cmd === '.صور') {
-            if (!query) return send(jid, 'اكتب حاجة بعد الأمر 🖼️')
-            const parts = query.split(' ')
-            let last = parts[parts.length - 1]
-            let num = parseInt(last)
-            let isNumber =!isNaN(num)
-            let limit = isNumber? num : 3
-            let search = isNumber? parts.slice(0, -1).join(' ') : query
-            if (limit < 1) limit = 1
-            if (limit > 10) limit = 10
-            await send(jid, `🖼️ جاري جلب ${limit} صور لـ: ${search}`)
-            const images = await getImages(search, limit)
-            if (!images.length) return send(jid, 'مفيش صور ❌')
-            for (let img of images) {
-                await sock.sendMessage(jid, { image: { url: img }, caption: search })
-            }
-            return
-        }
+        const text = msg.message.conversation || msg.messa>
+        const from = msg.key.remoteJid
 
-        if (cmd === '.ping') return send(jid, 'pong 🏓')
-        if (cmd === '.نرد') {
-            const num = Math.floor(Math.random() * 6) + 1
-            return send(jid, `🎲 النتيجة: ${num}`)
-        }
-        if (cmd === '.عملة') {
-            const result = Math.random() < 0.5? '🪙 صورة' : '🪙 كتابة'
-            return send(jid, result)
-        }
-        if (cmd === '.حظ') {
-            const luck = Math.floor(Math.random() * 101)
-            return send(jid, `🍀 نسبة حظك: ${luck}%`)
-        }
-        if (cmd === '.حجر' || cmd === '.ورقة' || cmd === '.مقص') {
-            const choices = ['حجر', 'ورقة', 'مقص']
-            const bot = choices[Math.floor(Math.random() * choices.length)]
-            const player = cmd.replace('.', '')
-            let result = '🤝 تعادل'
-            if ((player === 'حجر' && bot === 'مقص') || (player === 'ورقة' && bot === 'حجر') || (player === 'مقص' && bot === 'ورقة')) {
-                result = '✅ فزت'
-            } else if (player!== bot) {
-                result = '❌ خسرت'
-            }
-            return send(jid, `👤 أنت: ${player}\n🤖 البوت: ${bot}\n\n${result}`)
-        }
-        if (cmd === '.اوامر') {
-            return send(jid, `🤖 BOT:\n\n🖼️.صور <اسم> <1-10>\n🔥.ping\n🎲.نرد\n🪙.عملة\n🍀.حظ\n✊.حجر /.ورقة /.مقص`)
-        }
-        if (text.includes('سلام')) {
-            return send(jid, 'وعليكم السلام 👋')
+        if (text === '.هاي') {
+            await sock.sendMessage(from, { text: 'اشتغلت ي>
         }
     })
 }

@@ -92,43 +92,56 @@ async function startBot() {
             })
         }
 
-        // 5..ستيكر - رد على صورة
+        // 5..ستيكر - ثابت او متحرك تلقائي
 else if (text === '.ستيكر') {
     const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-    if (msg.message.imageMessage || quoted?.imageMessage) {
-        await sock.sendMessage(from, { text: 'ثانية بحولهولك ستيكر... ⏳' })
-        try {
-            const buffer = await downloadMediaMessage(quoted ? quoted : msg.message, 'buffer', {})
-            
-            // تحويل لwebp + اضافة بيانات الاستيكر
+    const mediaMsg = quoted ? quoted : msg.message
+    
+    const isImage = mediaMsg.imageMessage
+    const isVideo = mediaMsg.videoMessage
+    const isGif = isVideo?.gifPlayback === true
+    
+    if (!isImage && !isVideo) {
+        return await sock.sendMessage(from, { text: 'رد على صورة او فيديو/GIF واكتب.ستيكر' })
+    }
+    
+    await sock.sendMessage(from, { text: 'ثانية بحولهولك ستيكر... ⏳' })
+    
+    try {
+        const buffer = await downloadMediaMessage(mediaMsg, 'buffer', {})
+        
+        if (isImage) {
+            // ستيكر ثابت من صورة
             const webpBuffer = await sharp(buffer)
                 .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                 .webp({ quality: 80 })
                 .toBuffer()
-
-            const img = new webp.Image()
-            const exifAttr = Buffer.from([
-                0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00,
-                0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x16, 0x00, 0x00, 0x00
-            ])
-            const json = { 'sticker-pack-name': 'البوت', 'sticker-pack-publisher': name }
-            const exif = Buffer.from(JSON.stringify(json))
-            exif.writeUIntLE(exif.length, 14, 4)
-            img.exif = Buffer.concat([exifAttr, exif])
             
+            const img = new webp.Image()
+            const json = { 'sticker-pack-name': 'البوت', 'sticker-pack-publisher': name }
+            img.exif = Buffer.from([0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x01,0x00,0x41,0x57,0x07,0x00,0x00,0x00,0x00,0x00,0x16,0x00,0x00,0x00, ...Buffer.from(JSON.stringify(json))])
             await img.load(webpBuffer)
             const stickerBuffer = await img.save(null)
-            
             await sock.sendMessage(from, { sticker: stickerBuffer })
-        } catch (e) {
-            console.log(e)
-            await sock.sendMessage(from, { text: 'فشل التحويل 😢 جرب صورة تانية' })
+            
+        } else if (isGif || isVideo) {
+            // ستيكر متحرك من فيديو/GIF
+            if (buffer.length > 10 * 1024 * 1024) {
+                return await sock.sendMessage(from, { text: 'الفيديو كبير اوي، لازم اقل من 10MB' })
+            }
+            // Baileys بيدعم الستيكر المتحرك مباشر من البافر
+            await sock.sendMessage(from, { 
+                sticker: buffer,
+                mimetype: 'video/webp'
+            })
         }
-    } else {
-        await sock.sendMessage(from, { text: 'رد على صورة واكتب.ستيكر' })
+        
+    } catch (e) {
+        console.log(e)
+        await sock.sendMessage(from, { text: 'فشل التحويل 😢 اتأكد الفيديو اقل من 10 ثواني' })
     }
-        }
+    }
+    
         // 6..ترجمة
         else if (text.startsWith('.ترجمة')) {
             const txt = text.replace('.ترجمة', '').trim()

@@ -45,10 +45,9 @@ async function startBot() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
         if (qr) {
-    console.log('\n========== انسخ اللي تحت وحطه في المتصفح ==========')
-    const qrImage = await qrcode.toDataURL(qr)
-    const cleanQR = qrImage.replace('data:image/png;base64,', '')
-    console.log(cleanQR)
+    console.log('\n========== انسخ اللينك ده في المتصفح ==========')
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`
+    console.log(qrUrl)
     console.log('=================================================\n')
         }
         if (connection === 'close') {

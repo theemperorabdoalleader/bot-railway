@@ -1,44 +1,70 @@
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys')
+const { default: makeWASocket, useSingleFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
 const pino = require('pino')
 const axios = require('axios')
 const QRCode = require('qrcode')
+const fs = require('fs')
 
 process.on('SIGTERM', () => process.exit(0))
 
-async function startBot() {
-    console.log('بشغل البوت... استنى QR')
+const SESSION_FILE = './session.json'
 
-    const { state, saveCreds } = await useMultiFileAuthState('./session')
+async function startBot() {
+    console.log('بشغل البوت...')
+
+    // لو فيه SESSION_DATA في ENV حمّلها في ملف
+    if (process.env.SESSION_DATA &&!fs.existsSync(SESSION_FILE)) {
+        fs.writeFileSync(SESSION_FILE, Buffer.from(process.env.SESSION_DATA, 'base64'))
+        console.log('تم تحميل السيشن من ENV')
+    }
+
+    const { state, saveCreds } = useSingleFileAuthState(SESSION_FILE)
+
+    // كل ما السيشن يتحدث، احفظه Base64 في اللوج عشان تاخده تحطه في ENV
+    saveCreds = () => {
+        state.saveCreds()
+        const sessionData = fs.readFileSync(SESSION_FILE, 'base64')
+        console.log('\n=================================')
+        console.log('انسخ ده كله وحطه في SESSION_DATA في Railway:')
+        console.log(sessionData)
+        console.log('=================================\n')
+    }
 
     const sock = makeWASocket({
-    auth: state,
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
-    browser: ['Chrome', 'Android', '1.0.0']
-})
+        auth: state,
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false,
+        browser: ['Chrome', 'Android', '1.0.0']
+    })
 
     sock.ev.on('creds.update', saveCreds)
 
     sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update
+        const { connection, lastDisconnect, qr } = update
 
-    if (qr) {
-        console.log('\n=================================')
-        console.log('انسخ الرابط ده وافتحه في المتصفح هيطلعلك QR:')
-        const qrImage = await QRCode.toDataURL(qr)
-        console.log(qrImage)
-        console.log('=================================\n')
-    }
+        if (qr) {
+            console.log('\n=================================')
+            console.log('اول مرة بس - انسخ الرابط ده:')
+            const qrImage = await QRCode.toDataURL(qr)
+            console.log(qrImage)
+            console.log('=================================\n')
+        }
 
-    if (connection === 'close') {
-        console.log(lastDisconnect)
-        console.log(lastDisconnect?.error?.message)
-    }
+        if (connection === 'close') {
+            const statusCode = lastDisconnect?.error?.output?.statusCode
+            console.log('اتقفل. الكود:', statusCode)
 
-    if (connection === 'open') {
-        console.log('اشتغل يا معلم 🔥🔥')
-    }
-})
+            // لو 401 يعني السيشن باظ، امسح الـ ENV واعمل Deploy تاني
+            if (statusCode === 401) {
+                console.log('السيشن باظ! امسح SESSION_DATA من Railway واعمل Deploy')
+                process.exit(1)
+            }
+        }
+
+        if (connection === 'open') {
+            console.log('اشتغل يا معلم 🔥🔥 السيشن اتحفظ في ENV خلاص')
+        }
+    })
+
     const send = (jid, text) => sock.sendMessage(jid, { text })
 
     async function getImages(query, limit = 3) {

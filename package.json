@@ -10,7 +10,6 @@
     "@whiskeysockets/baileys": "^7.0.0-rc13",
     "axios": "^1.7.2",
     "pino": "^10.3.1",
-    "qrcode": "^1.5.3",
-    "wa-sticker-formatter": "^4.4.4"
+    "qrcode": "^1.5.3"
   }
 }

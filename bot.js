@@ -4,8 +4,7 @@ const qrcode = require('qrcode')
 const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
-const sharp = require('sharp')
-const webp = require('node-webpmux')
+const { Sticker, StickerTypes } = require('wa-sticker-formatter')
 
 const SESSION_FOLDER = './session'
 
@@ -92,54 +91,50 @@ async function startBot() {
             })
         }
 
-        // 5..ستيكر - ثابت او متحرك تلقائي
+        // 5..ستيكر
 else if (text === '.ستيكر') {
+
     const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-    const mediaMsg = quoted ? quoted : msg.message
-    
-    const isImage = mediaMsg.imageMessage
-    const isVideo = mediaMsg.videoMessage
-    const isGif = isVideo?.gifPlayback === true
-    
-    if (!isImage && !isVideo) {
-        return await sock.sendMessage(from, { text: 'رد على صورة او فيديو/GIF واكتب.ستيكر' })
+
+    if (!quoted?.imageMessage) {
+        return await sock.sendMessage(from, {
+            text: '📸 رد على صورة واكتب .ستيكر'
+        })
     }
-    
-    await sock.sendMessage(from, { text: 'ثانية بحولهولك ستيكر... ⏳' })
-    
+
     try {
-        const buffer = await downloadMediaMessage(mediaMsg, 'buffer', {})
-        
-        if (isImage) {
-            // ستيكر ثابت من صورة
-            const webpBuffer = await sharp(buffer)
-                .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                .webp({ quality: 80 })
-                .toBuffer()
-            
-            const img = new webp.Image()
-            const json = { 'sticker-pack-name': 'البوت', 'sticker-pack-publisher': name }
-            img.exif = Buffer.from([0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x01,0x00,0x41,0x57,0x07,0x00,0x00,0x00,0x00,0x00,0x16,0x00,0x00,0x00, ...Buffer.from(JSON.stringify(json))])
-            await img.load(webpBuffer)
-            const stickerBuffer = await img.save(null)
-            await sock.sendMessage(from, { sticker: stickerBuffer })
-            
-        } else if (isGif || isVideo) {
-            // ستيكر متحرك من فيديو/GIF
-            if (buffer.length > 10 * 1024 * 1024) {
-                return await sock.sendMessage(from, { text: 'الفيديو كبير اوي، لازم اقل من 10MB' })
-            }
-            // Baileys بيدعم الستيكر المتحرك مباشر من البافر
-            await sock.sendMessage(from, { 
-                sticker: buffer,
-                mimetype: 'video/webp'
-            })
-        }
-        
-    } catch (e) {
-        console.log(e)
-        await sock.sendMessage(from, { text: 'فشل التحويل 😢 اتأكد الفيديو اقل من 10 ثواني' })
-    }
+
+        await sock.sendMessage(from, {
+            text: '⏳ جاري إنشاء الستيكر...'
+        })
+
+        const buffer = await downloadMediaMessage(
+            {
+                message: quoted
+            },
+            'buffer',
+            {}
+        )
+
+        const sticker = new Sticker(buffer, {
+            pack: 'الاسطورة',
+            author: 'الامبراطور الذهبي',
+            type: StickerTypes.FULL,
+            quality: 100
+        })
+
+        const stickerBuffer = await sticker.toBuffer()
+
+        await sock.sendMessage(from, {
+            sticker: stickerBuffer
+        })
+
+    } catch (err) {
+        console.log(err)
+
+        await sock.sendMessage(from, {
+            text: '❌ فشل إنشاء الستيكر'
+        })
     }
     
         // 6..ترجمة

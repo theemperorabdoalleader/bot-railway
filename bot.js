@@ -4,7 +4,6 @@ const qrcode = require('qrcode')
 const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
-const { Sticker, StickerTypes } = require('wa-sticker-formatter')
 
 const SESSION_FOLDER = './session'
 
@@ -91,29 +90,23 @@ async function startBot() {
             })
         }
 
-        // 5..ستيكر
-        else if (text === '.ستيكر') {
-            const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-            if (!quoted?.imageMessage) {
-                return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب.ستيكر' })
-            }
-            try {
-                await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر...' })
-                const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
-                const sticker = new Sticker(buffer, {
-                    pack: 'الاسطورة',
-                    author: 'الامبراطور الذهبي',
-                    type: StickerTypes.FULL,
-                    quality: 100
-                })
-                const stickerBuffer = await sticker.toBuffer()
-                await sock.sendMessage(from, { sticker: stickerBuffer })
-            } catch (err) {
-                console.log(err)
-                await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر' })
-            }
-        } // <-- دي كانت ناقصة. قفلت بلوك الستيكر هنا
-
+        // 5..ستيكر - بدون اي مكتبات تقيلة
+else if (text === '.ستيكر') {
+    const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
+    if (!quoted?.imageMessage) {
+        return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب.ستيكر' })
+    }
+    try {
+        await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر...' })
+        const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
+        
+        // Baileys بيحوله ستيكر لوحده لو بعته كـ webp
+        await sock.sendMessage(from, { sticker: buffer })
+    } catch (err) {
+        console.log(err)
+        await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر. ابعت صورة JPG او PNG' })
+    }
+                }
         // 6..ترجمة
         else if (text.startsWith('.ترجمة')) {
             const txt = text.replace('.ترجمة', '').trim()

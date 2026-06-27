@@ -128,8 +128,11 @@ else if (text === '.ستيكر') {
             sticker: webpBuffer
         })
     } catch (err) {
-        console.log(err)
-        await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر' })
+    console.error('Sticker Error:', err)
+
+    await sock.sendMessage(from, {
+        text: '❌ فشل إنشاء الستيكر'
+    })
     }
                 }
         // ستيكر متحرك
@@ -168,13 +171,28 @@ else if (text === '.ستيكر') {
 
         fs.unlinkSync(inputPath)
         fs.unlinkSync(outputPath)
-    } catch (err) {
-        console.error('Sticker Error:', err)
-        await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر المتحرك' })
-        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
-        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
-    }
-            }
+     let inputPath
+let outputPath
+
+try {
+    inputPath = `./temp_${Date.now()}.mp4`
+    outputPath = `./temp_${Date.now()}.webp`
+
+    // باقي الكود
+}
+catch (err) {
+    console.error('Sticker Error:', err)
+
+    if (inputPath && fs.existsSync(inputPath))
+        fs.unlinkSync(inputPath)
+
+    if (outputPath && fs.existsSync(outputPath))
+        fs.unlinkSync(outputPath)
+
+    await sock.sendMessage(from, {
+        text: '❌ فشل إنشاء الستيكر المتحرك'
+    })
+}
         // 6..ترجمة
         else if (text.startsWith('.ترجمة')) {
             const txt = text.replace('.ترجمة', '').trim()

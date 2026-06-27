@@ -104,7 +104,11 @@ else if (text === '.ستيكر') {
         const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
         
         const webpBuffer = await sharp(buffer)
-            .resize(512, 512, { fit: 'inside' })
+            .resize(512, 512, { 
+    fit: 'contain', 
+    background: { r: 0, g: 0, b: 0, alpha: 0 },
+    withoutEnlargement: false
+})
             .webp()
             .toBuffer()
 

@@ -104,7 +104,7 @@ else if (text === '.ستيكر') {
         const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
         
         const webpBuffer = await sharp(buffer)
-            .resize(512, 512, { fit: 'fill' })
+            .resize(512, 512, { fit: 'inside' })
             .webp()
             .toBuffer()
 
@@ -134,9 +134,10 @@ else if (text === '.ستيكر') {
             ffmpeg(inputPath)
                 .outputOptions([
                     '-vcodec libwebp',
-                    '-vf scale=512:512:force_original_aspect_ratio=decrease,fps=15',
+                    '-vf scale=512:512:force_original_aspect_ratio=decrease,fps=24',
                     '-loop 0',
-                    '-preset default',
+                    '-quality 80',
+                    '-compression_level 6',
                     '-an',
                     '-vsync 0',
                     '-t 00:00:10'

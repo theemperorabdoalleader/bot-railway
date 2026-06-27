@@ -188,11 +188,82 @@ catch (err) {
 
     if (outputPath && fs.existsSync(outputPath))
         fs.unlinkSync(outputPath)
+else if (text === '.ستيكر متحرك') {
+    const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
 
-    await sock.sendMessage(from, {
-        text: '❌ فشل إنشاء الستيكر المتحرك'
-    })
-}
+    if (!quoted?.videoMessage) {
+        return await sock.sendMessage(from, {
+            text: '🎥 رد على فيديو واكتب .ستيكر متحرك'
+        })
+    }
+
+    let inputPath
+    let outputPath
+
+    try {
+        await sock.sendMessage(from, {
+            text: '⏳ جاري إنشاء الستيكر المتحرك...'
+        })
+
+        const buffer = await downloadMediaMessage(
+            { message: quoted },
+            'buffer',
+            {},
+            {
+                logger: pino({ level: 'silent' }),
+                reuploadRequest: sock.updateMediaMessage
+            }
+        )
+
+        inputPath = `./temp_${Date.now()}.mp4`
+        outputPath = `./temp_${Date.now()}.webp`
+
+        fs.writeFileSync(inputPath, buffer)
+
+        await new Promise((resolve, reject) => {
+            ffmpeg(inputPath)
+                .outputOptions([
+                    '-vcodec',
+                    'libwebp',
+                    '-vf',
+                    'scale=512:512:force_original_aspect_ratio=decrease,fps=15',
+                    '-loop',
+                    '0',
+                    '-an',
+                    '-t',
+                    '10'
+                ])
+                .save(outputPath)
+                .on('end', resolve)
+                .on('error', reject)
+        })
+
+        const webpBuffer = fs.readFileSync(outputPath)
+
+        await sock.sendMessage(from, {
+            sticker: webpBuffer
+        })
+
+        if (fs.existsSync(inputPath))
+            fs.unlinkSync(inputPath)
+
+        if (fs.existsSync(outputPath))
+            fs.unlinkSync(outputPath)
+
+    } catch (err) {
+        console.error('Sticker Error:', err)
+
+        if (inputPath && fs.existsSync(inputPath))
+            fs.unlinkSync(inputPath)
+
+        if (outputPath && fs.existsSync(outputPath))
+            fs.unlinkSync(outputPath)
+
+        await sock.sendMessage(from, {
+            text: '❌ فشل إنشاء الستيكر المتحرك'
+        })
+    }
+        }
         // 6..ترجمة
         else if (text.startsWith('.ترجمة')) {
             const txt = text.replace('.ترجمة', '').trim()

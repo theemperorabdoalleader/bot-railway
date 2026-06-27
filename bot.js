@@ -1,6 +1,5 @@
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState, downloadMediaMessage } = require('@whiskeysockets/baileys')
 const pino = require('pino')
-const qrcode = require('qrcode')
 const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
@@ -14,7 +13,7 @@ const SESSION_FOLDER = './session'
 async function startBot() {
     console.log('بشغل البوت...')
 
-    if (process.env.SESSION_DATA &&!fs.existsSync(SESSION_FOLDER)) {
+    if (process.env.SESSION_DATA && !fs.existsSync(SESSION_FOLDER)) {
         fs.mkdirSync(SESSION_FOLDER, { recursive: true })
         const files = JSON.parse(Buffer.from(process.env.SESSION_DATA, 'base64').toString())
         for (const [filename, content] of Object.entries(files)) {
@@ -26,22 +25,21 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_FOLDER)
 
     const sock = makeWASocket({
-    auth: state,
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
-    browser: ['Chrome', 'Windows', '10.0.0'],
-    qrTimeout: 60000
-})
+        auth: state,
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false,
+        browser: ['Chrome', 'Windows', '10.0.0'],
+        qrTimeout: 60000
+    })
 
     sock.ev.on('creds.update', async () => {
         await saveCreds()
         let files = {}
-const filenames = fs.readdirSync(SESSION_FOLDER)
-
-for (const file of filenames) {
-    const content = fs.readFileSync(path.join(SESSION_FOLDER, file))
-    files[file] = content.toString('base64')
-}
+        const filenames = fs.readdirSync(SESSION_FOLDER)
+        for (const file of filenames) {
+            const content = fs.readFileSync(path.join(SESSION_FOLDER, file))
+            files[file] = content.toString('base64')
+        }
         const sessionData = Buffer.from(JSON.stringify(files)).toString('base64')
         console.log('\n========== انسخ ده كله في SESSION_DATA ==========')
         console.log(sessionData)
@@ -59,9 +57,7 @@ for (const file of filenames) {
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode
             if (statusCode === DisconnectReason.loggedOut) process.exit(1)
-            setTimeout(() => {
-    startBot()
-}, 5000)
+            setTimeout(() => startBot(), 5000)
         } else if (connection === 'open') {
             console.log('✅ البوت اشتغل بنجاح واتصل بالواتساب 🔥')
         }
@@ -76,198 +72,118 @@ for (const file of filenames) {
         const from = msg.key.remoteJid
         const name = msg.pushName || 'مجهول'
 
-        // 1..هاي
+        // 1. .هاي
         if (text === '.هاي') {
             await sock.sendMessage(from, { text: `هاي يا ${name} 💪\nالبوت شغال 24 ساعة` })
         }
 
-        // 2..بنج
+        // 2. .بنج
         else if (text === '.بنج') {
             await sock.sendMessage(from, { text: 'بنج 🏓 البوت صاحي' })
         }
 
-        // 3..منو
+        // 3. .منو
         else if (text === '.منو') {
             await sock.sendMessage(from, { text: `انت ${name} يا زعيم 👑` })
         }
 
-        // 4..الاوامر
+        // 4. .الاوامر
         else if (text === '.الاوامر') {
             await sock.sendMessage(from, {
-                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ستيكر متحرك - رد على فيديو تعمله ستيكر متحرك\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.الاوامر - القايمة دي`            })
+                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ستيكر متحرك - رد على فيديو تعمله ستيكر متحرك\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.الاوامر - القايمة دي`
+            })
         }
 
-        // 5..ستيكر - بدون اي مكتبات تقيلة
-else if (text === '.ستيكر') {
-    const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-    if (!quoted?.imageMessage) {
-        return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب .ستيكر' })
-    }
-    try {
-        await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر...' })
-        const buffer = await downloadMediaMessage(
-    { message: quoted },
-    'buffer',
-    {},
-    {
-        logger: pino({ level: 'silent' }),
-        reuploadRequest: sock.updateMediaMessage
-    }
-)
-        
-        const webpBuffer = await sharp(buffer)
-            .resize(512, 512, { 
-    fit: 'contain', 
-    background: { r: 0, g: 0, b: 0, alpha: 0 },
-    withoutEnlargement: false
-})
-            .webp()
-            .toBuffer()
-
-        await sock.sendMessage(from, { 
-            sticker: webpBuffer
-        })
-    } catch (err) {
-    console.error('Sticker Error:', err)
-
-    await sock.sendMessage(from, {
-        text: '❌ فشل إنشاء الستيكر'
-    })
-    }
-                }
-        // ستيكر متحرك
-    else if (text === '.ستيكر متحرك') {
-    const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-    if (!quoted?.videoMessage && !quoted?.imageMessage) {
-        return await sock.sendMessage(from, { text: '🎥 رد على فيديو أو GIF واكتب .ستيكر متحرك' })
-    }
-    try {
-        await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر المتحرك...' })
-        const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
-        
-        const inputPath = `./temp_${Date.now()}.mp4`
-        const outputPath = `./temp_${Date.now()}.webp`
-        fs.writeFileSync(inputPath, buffer)
-
-        await new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
-                .outputOptions([
-                    '-vcodec libwebp',
-                    '-vf scale=512:512:force_original_aspect_ratio=decrease,fps=24',
-                    '-loop 0',
-                    '-quality 80',
-                    '-compression_level 6',
-                    '-an',
-                    '-vsync 0',
-                    '-t 00:00:10'
-                ])
-                .save(outputPath)
-                .on('end', resolve)
-                .on('error', reject)
-        })
-
-        const webpBuffer = fs.readFileSync(outputPath)
-        await sock.sendMessage(from, { sticker: webpBuffer })
-
-        fs.unlinkSync(inputPath)
-        fs.unlinkSync(outputPath)
-     let inputPath
-let outputPath
-
-try {
-    inputPath = `./temp_${Date.now()}.mp4`
-    outputPath = `./temp_${Date.now()}.webp`
-
-    // باقي الكود
-}
-catch (err) {
-    console.error('Sticker Error:', err)
-
-    if (inputPath && fs.existsSync(inputPath))
-        fs.unlinkSync(inputPath)
-
-    if (outputPath && fs.existsSync(outputPath))
-        fs.unlinkSync(outputPath)
-else if (text === '.ستيكر متحرك') {
-    const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-
-    if (!quoted?.videoMessage) {
-        return await sock.sendMessage(from, {
-            text: '🎥 رد على فيديو واكتب .ستيكر متحرك'
-        })
-    }
-
-    let inputPath
-    let outputPath
-
-    try {
-        await sock.sendMessage(from, {
-            text: '⏳ جاري إنشاء الستيكر المتحرك...'
-        })
-
-        const buffer = await downloadMediaMessage(
-            { message: quoted },
-            'buffer',
-            {},
-            {
-                logger: pino({ level: 'silent' }),
-                reuploadRequest: sock.updateMediaMessage
+        // 5. .ستيكر
+        else if (text === '.ستيكر') {
+            const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
+            if (!quoted?.imageMessage) {
+                return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب .ستيكر' })
             }
-        )
+            try {
+                await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر...' })
+                const buffer = await downloadMediaMessage(
+                    { message: quoted },
+                    'buffer',
+                    {},
+                    {
+                        logger: pino({ level: 'silent' }),
+                        reuploadRequest: sock.updateMediaMessage
+                    }
+                )
+                const webpBuffer = await sharp(buffer)
+                    .resize(512, 512, {
+                        fit: 'contain',
+                        background: { r: 0, g: 0, b: 0, alpha: 0 },
+                        withoutEnlargement: false
+                    })
+                    .webp()
+                    .toBuffer()
 
-        inputPath = `./temp_${Date.now()}.mp4`
-        outputPath = `./temp_${Date.now()}.webp`
-
-        fs.writeFileSync(inputPath, buffer)
-
-        await new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
-                .outputOptions([
-                    '-vcodec',
-                    'libwebp',
-                    '-vf',
-                    'scale=512:512:force_original_aspect_ratio=decrease,fps=15',
-                    '-loop',
-                    '0',
-                    '-an',
-                    '-t',
-                    '10'
-                ])
-                .save(outputPath)
-                .on('end', resolve)
-                .on('error', reject)
-        })
-
-        const webpBuffer = fs.readFileSync(outputPath)
-
-        await sock.sendMessage(from, {
-            sticker: webpBuffer
-        })
-
-        if (fs.existsSync(inputPath))
-            fs.unlinkSync(inputPath)
-
-        if (fs.existsSync(outputPath))
-            fs.unlinkSync(outputPath)
-
-    } catch (err) {
-        console.error('Sticker Error:', err)
-
-        if (inputPath && fs.existsSync(inputPath))
-            fs.unlinkSync(inputPath)
-
-        if (outputPath && fs.existsSync(outputPath))
-            fs.unlinkSync(outputPath)
-
-        await sock.sendMessage(from, {
-            text: '❌ فشل إنشاء الستيكر المتحرك'
-        })
-    }
+                await sock.sendMessage(from, { sticker: webpBuffer })
+            } catch (err) {
+                console.error('Sticker Error:', err)
+                await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر' })
+            }
         }
-        // 6..ترجمة
+
+        // 6. .ستيكر متحرك
+        else if (text === '.ستيكر متحرك') {
+            const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
+            if (!quoted?.videoMessage) {
+                return await sock.sendMessage(from, { text: '🎥 رد على فيديو واكتب .ستيكر متحرك' })
+            }
+            let inputPath
+            let outputPath
+            try {
+                await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر المتحرك...' })
+                const buffer = await downloadMediaMessage(
+                    { message: quoted },
+                    'buffer',
+                    {},
+                    {
+                        logger: pino({ level: 'silent' }),
+                        reuploadRequest: sock.updateMediaMessage
+                    }
+                )
+                inputPath = `./temp_${Date.now()}.mp4`
+                outputPath = `./temp_${Date.now()}.webp`
+                fs.writeFileSync(inputPath, buffer)
+
+                await new Promise((resolve, reject) => {
+                    ffmpeg(inputPath)
+                        .outputOptions([
+                            '-vcodec', 'libwebp',
+                            '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,fps=24',
+                            '-loop', '0',
+                            '-quality', '80',
+                            '-compression_level', '6',
+                            '-an',
+                            '-vsync', '0',
+                            '-t', '10'
+                        ])
+                        .save(outputPath)
+                        .on('end', resolve)
+                        .on('error', reject)
+                })
+
+                const webpBuffer = fs.readFileSync(outputPath)
+                await sock.sendMessage(from, { sticker: webpBuffer })
+
+                if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
+                if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
+            } catch (err) {
+                console.error('Sticker Error:', err)
+                if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
+                if (outputPath && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
+                await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر المتحرك' })
+            }
+        }
+
+        // 7. .ترجمة
         else if (text.startsWith('.ترجمة')) {
             const txt = text.replace('.ترجمة', '').trim()
-            if (!txt) return await sock.sendMessage(from, { text: 'اكتب.ترجمة والنص\nمثال:.ترجمة ازيك' })
+            if (!txt) return await sock.sendMessage(from, { text: 'اكتب .ترجمة والنص\nمثال: .ترجمة ازيك' })
             try {
                 const res = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(txt)}`)
                 await sock.sendMessage(from, { text: `🇪🇬 ${txt}\n🇺🇸 ${res.data[0][0][0]}` })
@@ -276,10 +192,10 @@ else if (text === '.ستيكر متحرك') {
             }
         }
 
-        // 7..حاسبة
+        // 8. .حاسبة
         else if (text.startsWith('.حاسبة')) {
             const calc = text.replace('.حاسبة', '').trim()
-            if (!calc) return await sock.sendMessage(from, { text: 'اكتب.حاسبة 5+3' })
+            if (!calc) return await sock.sendMessage(from, { text: 'اكتب .حاسبة 5+3' })
             try {
                 const result = eval(calc.replace(/[^0-9+\-*/.() ]/g, ''))
                 await sock.sendMessage(from, { text: `${calc} = ${result}` })
@@ -288,28 +204,34 @@ else if (text === '.ستيكر متحرك') {
             }
         }
 
-        // 8..مين ادمن - للجروبات
+        // 9. .مين ادمن
         else if (text === '.مين ادمن') {
             if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
             const group = await sock.groupMetadata(from)
             const admins = group.participants.filter(p => p.admin).map(p => `@${p.id.split('@')[0]}`).join('\n')
-            await sock.sendMessage(from, { text: `*ادمن الجروب:*\n${admins}`, mentions: group.participants.filter(p => p.admin).map(p => p.id) })
+            await sock.sendMessage(from, {
+                text: `*ادمن الجروب:*\n${admins}`,
+                mentions: group.participants.filter(p => p.admin).map(p => p.id)
+            })
         }
 
-        // 9..رابط الجروب
+        // 10. .رابط الجروب
         else if (text === '.رابط الجروب') {
             if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
             const code = await sock.groupInviteCode(from)
             await sock.sendMessage(from, { text: `رابط الجروب:\nhttps://chat.whatsapp.com/${code}` })
         }
 
-        // 10..انذار @حد
+        // 11. .انذار
         else if (text.startsWith('.انذار')) {
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
             if (!mentioned || mentioned.length === 0) {
-                await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال:.انذار @احمد' })
+                await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .انذار @احمد' })
             } else {
-                await sock.sendMessage(from, { text: `⚠️ انذار لـ @${mentioned[0].split('@')[0]}\nالتزم بقوانين الجروب`, mentions: mentioned })
+                await sock.sendMessage(from, {
+                    text: `⚠️ انذار لـ @${mentioned[0].split('@')[0]}\nالتزم بقوانين الجروب`,
+                    mentions: mentioned
+                })
             }
         }
     })

@@ -36,11 +36,12 @@ async function startBot() {
     sock.ev.on('creds.update', async () => {
         await saveCreds()
         let files = {}
-        const filenames = fs.readdirSync(SESSION_FOLDER)
-        for (const file of filenames) {
-            const content = fs.readFileSync(path.join(SESSION_FOLDER, file))
-            files[file] = content.toString('base64') // <-- صلحت دي كمان
-        }
+const filenames = fs.readdirSync(SESSION_FOLDER)
+
+for (const file of filenames) {
+    const content = fs.readFileSync(path.join(SESSION_FOLDER, file))
+    files[file] = content.toString('base64')
+}
         const sessionData = Buffer.from(JSON.stringify(files)).toString('base64')
         console.log('\n========== انسخ ده كله في SESSION_DATA ==========')
         console.log(sessionData)
@@ -58,7 +59,9 @@ async function startBot() {
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode
             if (statusCode === DisconnectReason.loggedOut) process.exit(1)
-            startBot()
+            setTimeout(() => {
+    startBot()
+}, 5000)
         } else if (connection === 'open') {
             console.log('✅ البوت اشتغل بنجاح واتصل بالواتساب 🔥')
         }
@@ -102,7 +105,15 @@ else if (text === '.ستيكر') {
     }
     try {
         await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر...' })
-        const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
+        const buffer = await downloadMediaMessage(
+    { message: quoted },
+    'buffer',
+    {},
+    {
+        logger: pino({ level: 'silent' }),
+        reuploadRequest: sock.updateMediaMessage
+    }
+)
         
         const webpBuffer = await sharp(buffer)
             .resize(512, 512, { 
@@ -158,8 +169,10 @@ else if (text === '.ستيكر') {
         fs.unlinkSync(inputPath)
         fs.unlinkSync(outputPath)
     } catch (err) {
-        console.log(err)
+        console.error('Sticker Error:', err)
         await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر المتحرك' })
+        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
     }
             }
         // 6..ترجمة

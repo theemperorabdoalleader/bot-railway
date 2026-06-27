@@ -4,6 +4,7 @@ const qrcode = require('qrcode')
 const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
+const sharp = require('sharp')
 
 const SESSION_FOLDER = './session'
 
@@ -94,17 +95,23 @@ async function startBot() {
 else if (text === '.ستيكر') {
     const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
     if (!quoted?.imageMessage) {
-        return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب.ستيكر' })
+        return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب .ستيكر' })
     }
     try {
         await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر...' })
         const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
         
-        // Baileys بيحوله ستيكر لوحده لو بعته كـ webp
-        await sock.sendMessage(from, { sticker: buffer })
+        const webpBuffer = await sharp(buffer)
+            .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .webp()
+            .toBuffer()
+
+        await sock.sendMessage(from, { 
+            sticker: webpBuffer
+        })
     } catch (err) {
         console.log(err)
-        await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر. ابعت صورة JPG او PNG' })
+        await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر' })
     }
                 }
         // 6..ترجمة

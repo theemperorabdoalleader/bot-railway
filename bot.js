@@ -5,6 +5,9 @@ const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
 const sharp = require('sharp')
+const ffmpeg = require('fluent-ffmpeg')
+const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg')
+ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 
 const SESSION_FOLDER = './session'
 
@@ -87,8 +90,7 @@ async function startBot() {
         // 4..الاوامر
         else if (text === '.الاوامر') {
             await sock.sendMessage(from, {
-                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.الاوامر - القايمة دي`
-            })
+                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ستيكر متحرك - رد على فيديو تعمله ستيكر متحرك\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.الاوامر - القايمة دي`            })
         }
 
         // 5..ستيكر - بدون اي مكتبات تقيلة
@@ -102,7 +104,7 @@ else if (text === '.ستيكر') {
         const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
         
         const webpBuffer = await sharp(buffer)
-            .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            ..resize(512, 512, { fit: 'fill' })
             .webp()
             .toBuffer()
 
@@ -114,6 +116,46 @@ else if (text === '.ستيكر') {
         await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر' })
     }
                 }
+        // ستيكر متحرك
+    else if (text === '.ستيكر متحرك') {
+    const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
+    if (!quoted?.videoMessage && !quoted?.imageMessage) {
+        return await sock.sendMessage(from, { text: '🎥 رد على فيديو أو GIF واكتب .ستيكر متحرك' })
+    }
+    try {
+        await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر المتحرك...' })
+        const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {})
+        
+        const inputPath = `./temp_${Date.now()}.mp4`
+        const outputPath = `./temp_${Date.now()}.webp`
+        fs.writeFileSync(inputPath, buffer)
+
+        await new Promise((resolve, reject) => {
+            ffmpeg(inputPath)
+                .outputOptions([
+                    '-vcodec libwebp',
+                    '-vf scale=512:512:force_original_aspect_ratio=decrease,fps=15',
+                    '-loop 0',
+                    '-preset default',
+                    '-an',
+                    '-vsync 0',
+                    '-t 00:00:10'
+                ])
+                .save(outputPath)
+                .on('end', resolve)
+                .on('error', reject)
+        })
+
+        const webpBuffer = fs.readFileSync(outputPath)
+        await sock.sendMessage(from, { sticker: webpBuffer })
+
+        fs.unlinkSync(inputPath)
+        fs.unlinkSync(outputPath)
+    } catch (err) {
+        console.log(err)
+        await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر المتحرك' })
+    }
+            }
         // 6..ترجمة
         else if (text.startsWith('.ترجمة')) {
             const txt = text.replace('.ترجمة', '').trim()

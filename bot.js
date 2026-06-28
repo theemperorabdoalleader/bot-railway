@@ -237,30 +237,45 @@ async function startBot() {
 
         // 12. .اديت انمي
         else if (text === '.اديت انمي') {
-            try {
-                await sock.sendMessage(from, { text: '⏳ جاري البحث عن GIF أنمي...' })
-                const res = await axios.get('https://api.giphy.com/v1/gifs/search', {
-                    params: {
-                        api_key: process.env.GIPHY_API_KEY,
-                        const query = text.replace('.اديت', '').trim()
+    try {
+        await sock.sendMessage(from, { text: '⏳ جاري البحث عن GIF أنمي...' })
 
-                        q: `${query} anime`,
-                        limit: 20,
-                        rating: 'g'
-                    }
-                })
-                const gifs = res.data.data
-                if (!gifs.length) return await sock.sendMessage(from, { text: '❌ مش لاقي حاجة' })
-                const random = gifs[Math.floor(Math.random() * gifs.length)]
-                const gifUrl = random.images.original.url
-                const response = await axios.get(gifUrl, { responseType: 'arraybuffer' })
-                const buffer = Buffer.from(response.data)
-                await sock.sendMessage(from, { video: buffer, gifPlayback: true, caption: '🎌 أنمي أكشن' })
-            } catch (err) {
-                console.error('Giphy Error:', err)
-                await sock.sendMessage(from, { text: '❌ فشل جلب الـ GIF' })
+        const query = 'anime action fight'
+
+        const res = await axios.get('https://api.giphy.com/v1/gifs/search', {
+            params: {
+                api_key: process.env.GIPHY_API_KEY,
+                q: query,
+                limit: 20,
+                rating: 'g'
             }
+        })
+
+        const gifs = res.data.data
+        if (!gifs.length) {
+            return await sock.sendMessage(from, { text: '❌ مش لاقي حاجة' })
         }
+
+        const random = gifs[Math.floor(Math.random() * gifs.length)]
+        const gifUrl = random.images.original.url
+
+        const response = await axios.get(gifUrl, {
+            responseType: 'arraybuffer'
+        })
+
+        const buffer = Buffer.from(response.data)
+
+        await sock.sendMessage(from, {
+            video: buffer,
+            gifPlayback: true,
+            caption: '🎌 أنمي أكشن'
+        })
+
+    } catch (err) {
+        console.error('Giphy Error:', err)
+        await sock.sendMessage(from, { text: '❌ فشل جلب الـ GIF' })
+    }
+                                       }
 
         // 13. .اديت
         else if (text.startsWith('.اديت ')) {

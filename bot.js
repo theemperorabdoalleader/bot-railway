@@ -90,7 +90,7 @@ async function startBot() {
         // 4. .الاوامر
         else if (text === '.الاوامر') {
             await sock.sendMessage(from, {
-                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ستيكر متحرك - رد على فيديو تعمله ستيكر متحرك\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.الاوامر - القايمة دي`
+                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ستيكر متحرك - رد على فيديو تعمله ستيكر متحرك\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.اديت انمي - GIF انمي اكشن\n.اديت كلمة - فيديو لأي شخص او موضوع\n.صور كلمة - 3 صور افتراضي\n.صور كلمة 5 - تحديد عدد الصور (1-10)\n.الاوامر - القايمة دي`
             })
         }
 
@@ -234,7 +234,88 @@ async function startBot() {
                 })
             }
         }
+
+        // 12. .اديت انمي
+        else if (text === '.اديت انمي') {
+            try {
+                await sock.sendMessage(from, { text: '⏳ جاري البحث عن GIF أنمي...' })
+                const res = await axios.get('https://api.giphy.com/v1/gifs/search', {
+                    params: {
+                        api_key: process.env.GIPHY_API_KEY,
+                        q: 'anime action fight',
+                        limit: 20,
+                        rating: 'g'
+                    }
+                })
+                const gifs = res.data.data
+                if (!gifs.length) return await sock.sendMessage(from, { text: '❌ مش لاقي حاجة' })
+                const random = gifs[Math.floor(Math.random() * gifs.length)]
+                const gifUrl = random.images.original.url
+                const response = await axios.get(gifUrl, { responseType: 'arraybuffer' })
+                const buffer = Buffer.from(response.data)
+                await sock.sendMessage(from, { video: buffer, gifPlayback: true, caption: '🎌 أنمي أكشن' })
+            } catch (err) {
+                console.error('Giphy Error:', err)
+                await sock.sendMessage(from, { text: '❌ فشل جلب الـ GIF' })
+            }
+        }
+
+        // 13. .اديت
+        else if (text.startsWith('.اديت ')) {
+            const query = text.replace('.اديت', '').trim()
+            if (!query) return await sock.sendMessage(from, { text: 'اكتب .اديت واسم الشخص\nمثال: .اديت كريستيانو' })
+            try {
+                await sock.sendMessage(from, { text: `⏳ جاري البحث عن فيديو ${query}...` })
+                const res = await axios.get('https://api.pexels.com/videos/search', {
+                    headers: { Authorization: process.env.PEXELS_API_KEY },
+                    params: { query, per_page: 15, orientation: 'portrait' }
+                })
+                const videos = res.data.videos
+                if (!videos.length) return await sock.sendMessage(from, { text: `❌ مش لاقي فيديو عن ${query}` })
+                const random = videos[Math.floor(Math.random() * videos.length)]
+                const videoFile = random.video_files.sort((a, b) => b.width - a.width)[0]
+                const response = await axios.get(videoFile.link, { responseType: 'arraybuffer' })
+                const buffer = Buffer.from(response.data)
+                await sock.sendMessage(from, { video: buffer, caption: `🎬 ${query}` })
+            } catch (err) {
+                console.error('Pexels Video Error:', err)
+                await sock.sendMessage(from, { text: '❌ فشل جلب الفيديو' })
+            }
+        }
+
+        // 14. .صور
+        else if (text.startsWith('.صور')) {
+            const parts = text.replace('.صور', '').trim().split(' ')
+            let count = 3
+            let query = parts.join(' ')
+
+            const lastWord = parts[parts.length - 1]
+            if (!isNaN(lastWord) && lastWord !== '') {
+                count = Math.min(Math.max(parseInt(lastWord), 1), 10)
+                query = parts.slice(0, -1).join(' ')
+            }
+
+            if (!query) return await sock.sendMessage(from, { text: 'اكتب .صور وموضوع البحث\nمثال: .صور قطط\nأو: .صور قطط 5' })
+            try {
+                await sock.sendMessage(from, { text: `⏳ جاري البحث عن ${count} صورة ${query}...` })
+                const res = await axios.get('https://api.pexels.com/v1/search', {
+                    headers: { Authorization: process.env.PEXELS_API_KEY },
+                    params: { query, per_page: count }
+                })
+                const photos = res.data.photos
+                if (!photos.length) return await sock.sendMessage(from, { text: `❌ مش لاقي صور عن ${query}` })
+                for (const photo of photos) {
+                    const response = await axios.get(photo.src.large, { responseType: 'arraybuffer' })
+                    const buffer = Buffer.from(response.data)
+                    await sock.sendMessage(from, { image: buffer, caption: `📸 ${query}` })
+                }
+            } catch (err) {
+                console.error('Pexels Photo Error:', err)
+                await sock.sendMessage(from, { text: '❌ فشل جلب الصور' })
+            }
+        }
     })
 }
 
 startBot()
+                

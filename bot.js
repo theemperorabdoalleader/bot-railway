@@ -7,6 +7,8 @@ const sharp = require('sharp')
 const ffmpeg = require('fluent-ffmpeg')
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg')
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
+const ytdl = require('ytdl-core');
+const { pipeline } = require('stream/promises');
 
 const SESSION_FOLDER = './session'
 
@@ -84,9 +86,10 @@ async function startBot() {
         if (text === '.هاي') { await sock.sendMessage(from, { text: `هاي يا ${name} 💪\nالبوت شغال 24 ساعة` }) }
         else if (text === '.بنج') { await sock.sendMessage(from, { text: 'بنج 🏓 البوت صاحي' }) }
         else if (text === '.منو') { await sock.sendMessage(from, { text: `انت ${name} يا زعيم 👑` }) }
+        // 4..الاوامر
         else if (text === '.الاوامر') {
             await sock.sendMessage(from, {
-                text: `*📜 اوامر البوت:*\n\n.هاي\n.بنج\n.منو\n.ستيكر\n.ستيكر متحرك\n.ترجمة نص\n.حاسبة 5+3\n.مين ادمن\n.رابط الجروب\n.انذار @حد\n.صور كلمة 5\n.الاوامر`
+                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ستيكر متحرك - رد على فيديو تعمله ستيكر متحرك\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.صور كلمة - 3 صور افتراضي\n.صور كلمة 5 - تحديد عدد الصور (1-10)\n.اغنية اسم - تنزل الاغنية MP3\n.الاوامر - القايمة دي`
             })
         }
         else if (text === '.ستيكر') {
@@ -128,6 +131,48 @@ async function startBot() {
             const group = await sock.groupMetadata(from); const admins = group.participants.filter(p => p.admin).map(p => `@${p.id.split('@')[0]}`).join('\n')
             await sock.sendMessage(from, { text: `*ادمن الجروب:*\n${admins}`, mentions: group.participants.filter(p => p.admin).map(p => p.id) })
         }
+            
+// 13..اغنية
+        else if (text.startsWith('.اغنية')) {
+            const query = text.replace('.اغنية', '').trim()
+            if (!query) return await sock.sendMessage(from, { text: 'اكتب.اغنية واسم الاغنية\nمثال:.اغنية انت معلم' })
+
+            const audioPath = `./song_${Date.now()}.mp3`
+
+            try {
+                await sock.sendMessage(from, { text: `⏳ بدور على ${query}...` })
+
+                // نجيب اول نتيجة بحث من يوتيوب
+                const searchResults = await ytdl.search(query, { limit: 1 })
+                if (!searchResults.videos.length) {
+                    return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
+                }
+                const videoUrl = searchResults.videos[0].url
+                const title = searchResults.videos[0].title.replace(/[^a-z0-9]/gi, '_').substring(0, 50)
+
+                // ننزل الصوت بس MP3
+                await pipeline(
+                    ytdl(videoUrl, { filter: 'audioonly', quality: 'highestaudio' }),
+                    fs.createWriteStream(audioPath)
+                )
+
+                const audioBuffer = fs.readFileSync(audioPath)
+
+                await sock.sendMessage(from, {
+                    audio: audioBuffer,
+                    mimetype: 'audio/mpeg',
+                    fileName: `${title}.mp3`,
+                    ptt: false
+                })
+
+                fs.unlinkSync(audioPath)
+
+            } catch (err) {
+                console.error('Song Error:', err)
+                if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath)
+                await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية. ممكن الاسم غلط او الفيديو محظور' })
+            }
+    }
         else if (text === '.رابط الجروب') {
             if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
             const code = await sock.groupInviteCode(from); await sock.sendMessage(from, { text: `رابط الجروب:\nhttps://chat.whatsapp.com/${code}` })

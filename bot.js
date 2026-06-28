@@ -242,7 +242,9 @@ async function startBot() {
                 const res = await axios.get('https://api.giphy.com/v1/gifs/search', {
                     params: {
                         api_key: process.env.GIPHY_API_KEY,
-                        q: 'anime action fight',
+                        const query = text.replace('.اديت', '').trim()
+
+                        q: `${query} anime`,
                         limit: 20,
                         rating: 'g'
                     }

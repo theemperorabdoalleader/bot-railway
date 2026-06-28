@@ -7,8 +7,8 @@ const sharp = require('sharp')
 const ffmpeg = require('fluent-ffmpeg')
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg')
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
-const ytdl = require('ytdl-core');
-const { pipeline } = require('stream/promises');
+const ytdl = require('@distube/ytdl-core');
+const yts = require('yt-search');
 
 const SESSION_FOLDER = './session'
 
@@ -132,6 +132,7 @@ async function startBot() {
             await sock.sendMessage(from, { text: `*ادمن الجروب:*\n${admins}`, mentions: group.participants.filter(p => p.admin).map(p => p.id) })
         }
             
+
 // 13..اغنية
         else if (text.startsWith('.اغنية')) {
             const query = text.replace('.اغنية', '').trim()
@@ -142,26 +143,26 @@ async function startBot() {
             try {
                 await sock.sendMessage(from, { text: `⏳ بدور على ${query}...` })
 
-                // نجيب اول نتيجة بحث من يوتيوب
-                const searchResults = await ytdl.search(query, { limit: 1 })
-                if (!searchResults.videos.length) {
-                    return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
-                }
-                const videoUrl = searchResults.videos[0].url
-                const title = searchResults.videos[0].title.replace(/[^a-z0-9]/gi, '_').substring(0, 50)
+                const r = await yts(query)
+                const video = r.videos[0]
+                if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
 
-                // ننزل الصوت بس MP3
-                await pipeline(
-                    ytdl(videoUrl, { filter: 'audioonly', quality: 'highestaudio' }),
-                    fs.createWriteStream(audioPath)
-                )
+                await sock.sendMessage(from, { text: `⏳ بحمل: ${video.title}` })
+
+                const stream = ytdl(video.url, { filter: 'audioonly', quality: 'highestaudio' })
+                const writeStream = fs.createWriteStream(audioPath)
+
+                stream.pipe(writeStream)
+                await new Promise((resolve, reject) => {
+                    writeStream.on('finish', resolve)
+                    writeStream.on('error', reject)
+                })
 
                 const audioBuffer = fs.readFileSync(audioPath)
-
                 await sock.sendMessage(from, {
                     audio: audioBuffer,
                     mimetype: 'audio/mpeg',
-                    fileName: `${title}.mp3`,
+                    fileName: `${video.title}.mp3`,
                     ptt: false
                 })
 
@@ -170,9 +171,9 @@ async function startBot() {
             } catch (err) {
                 console.error('Song Error:', err)
                 if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath)
-                await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية. ممكن الاسم غلط او الفيديو محظور' })
+                await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية' })
             }
-    }
+                                                                         }
         else if (text === '.رابط الجروب') {
             if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
             const code = await sock.groupInviteCode(from); await sock.sendMessage(from, { text: `رابط الجروب:\nhttps://chat.whatsapp.com/${code}` })

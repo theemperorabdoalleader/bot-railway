@@ -348,9 +348,8 @@ async function startBot() {
                 return
             }
         }
-
-        // ====== فحص إجابات التحدي النشط ======
-        if (isGroup && text && !text.startsWith('.')) {
+// ====== فحص إجابات التحدي النشط ======
+        if (isGroup && text &&!text.startsWith('.')) {
             try {
                 const db = loadDB()
 
@@ -386,16 +385,17 @@ async function startBot() {
                     }
                 }
 
+                // فحص إجابات المبارزة
                 const duel = db.duels[from]
                 if (duel) {
                     const now = Date.now()
                     if (now > duel.expiresAt) {
-                        delete db.duels[from]
-                        saveDB(db)
-                        await sock.sendMessage(from, {
-                            text: `⏰ انتهى وقت التحدي بين @${duel.challenger.split('@')[0]} و @${duel.challenged.split('@')[0]}!\n💔 لا رابح ولا خاسر — الفلوس رجعت لأصحابها`,
-                            mentions: [duel.challenger, duel.challenged]
-                        })
+                        delete db.duels[from]; saveDB(db) // <- صلحتها db
+                        await sock.sendMessage(from, { text: `⏰ *انتهى وقت المبارزة!*\n✅ الإجابة: *${duel.answer}*\n💔 الفلوس رجعت لأصحابها` }) // <- صلحتها duel.answer
+                    }
+                }
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) } // <- ال try صح
+            }
                     } else if (senderId === duel.challenger || senderId === duel.challenged) {
                         const userAnswer = text.trim().toLowerCase()
                         const correctAnswer = duel.answer.trim().toLowerCase()

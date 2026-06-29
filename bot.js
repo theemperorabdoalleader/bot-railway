@@ -11,7 +11,6 @@ const ytdl = require('@distube/ytdl-core');
 const yts = require('yt-search');
 const QRCode = require('qrcode');
 const express = require('express');
-const ytDlp = require('yt-dlp-exec');
 
 const SESSION_FOLDER = './session'
 const DB_FILE = './database.json'
@@ -607,11 +606,11 @@ async function startBot() {
             } catch (err) { console.error('Pexels Photo Error:', err); await sock.sendMessage(from, { text: '❌ فشل جلب الصور' }) }
         }
 
-        // ======.اغنية - نسخة yt-dlp ======
+        // ======.اغنية - نسخة API بدون تحميل ======
 else if (text.startsWith('.اغنية')) {
     const query = text.replace('.اغنية', '').trim()
     if (!query) return await sock.sendMessage(from, { text: 'اكتب.اغنية واسم الاغنية\nمثال:.اغنية انت معلم' })
-    const audioPath = `./song_${Date.now()}.mp3`
+    
     try {
         await sock.sendMessage(from, { text: `🔍 بدور على: ${query}...` })
         const r = await yts(query)
@@ -619,21 +618,22 @@ else if (text.startsWith('.اغنية')) {
         if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
         if (video.seconds > 420) return await sock.sendMessage(from, { text: '❌ الاغنية أطول من 7 دقائق' })
 
-        await sock.sendMessage(from, {
-            text: `🎵 *لقيت الاغنية!*\n\n📌 الاسم: ${video.title}\n⏱️ المدة: ${video.timestamp}\n\n⏳ جاري التحميل...`
+        await sock.sendMessage(from, { text: `🎵 *لقيت الاغنية!*\n\n📌 ${video.title}\n⏳ جاري التحميل...` })
+
+        // بنجيب رابط التحميل المباشر من API
+        const apiRes = await axios.post('https://api.cobalt.tools/api/json', {
+            url: video.url,
+            aFormat: 'mp3',
+            isAudioOnly: true
         })
 
-        await ytDlp(video.url, {
-            extractAudio: true,
-            audioFormat: 'mp3',
-            audioQuality: 0, // احسن جودة
-            output: audioPath,
-            limitRate: '500K', // عشان Railway ميحظرش
-        });
+        const audioUrl = apiRes.data.url
+        if (!audioUrl) throw new Error('مفيش رابط تحميل')
 
-        const audioBuffer = fs.readFileSync(audioPath)
+        const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' })
+        const audioBuffer = Buffer.from(audioResponse.data)
+
         if (audioBuffer.length > 16 * 1024 * 1024) {
-            fs.unlinkSync(audioPath)
             return await sock.sendMessage(from, { text: '❌ الاغنية كبيرة اوي، واتساب اخره 16MB' })
         }
 
@@ -642,24 +642,11 @@ else if (text.startsWith('.اغنية')) {
             mimetype: 'audio/mpeg',
             fileName: `${video.title}.mp3`,
         })
-        fs.unlinkSync(audioPath)
     } catch (err) {
         console.error('Song Error:', err)
-        if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath)
-        await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية، جرب اسم تاني او اللينك مباشر' })
+        await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية، جرب اسم تاني' })
     }
-                }
-
-                await new Promise((resolve, reject) => {
-                    const stream = ytdl(video.url, {
-                        filter: 'audioonly',
-                        quality: 'lowestaudio',
-                        requestOptions: {
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                            }
-                        }
-                    })
+                                           }
                     const writeStream = fs.createWriteStream(audioPath)
                     stream.pipe(writeStream)
                     stream.on('error', reject)

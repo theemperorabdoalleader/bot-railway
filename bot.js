@@ -11,6 +11,7 @@ const ytdl = require('@distube/ytdl-core');
 const yts = require('yt-search');
 const QRCode = require('qrcode');
 const express = require('express');
+const ytDlp = require('yt-dlp-exec');
 
 const SESSION_FOLDER = './session'
 const DB_FILE = './database.json'
@@ -133,43 +134,43 @@ const PUZZLES = [
     { q: '🤔 ما هو الشيء الذي يكبر كلما أضفت إليه ماء؟', a: 'عجين', hint: 'تصنع منه الخبز' },
 ]
 
-// ====== أعين الأنمي - 35 عين ======
+// ====== أعين الأنمي - 35 عين شغالة ======
 const ANIME_EYES = [
-    { name: 'شارينغان - ساسكي', url: 'https://i.imgur.com/VJ7FVJG.jpg' },
-    { name: 'رينيغان - ناغاتو', url: 'https://i.imgur.com/3xQkKpD.jpg' },
-    { name: 'بيكو - بورتاس', url: 'https://i.imgur.com/kJlMnOp.jpg' },
-    { name: 'باكوغان - ميليم', url: 'https://i.imgur.com/RsTuVwX.jpg' },
-    { name: 'عين الشيطان - ديمون سلاير', url: 'https://i.imgur.com/YzAbCdE.jpg' },
-    { name: 'جيوغان - بوروتو', url: 'https://i.imgur.com/FgHiJkL.jpg' },
-    { name: 'باياكوغان - هيناتا', url: 'https://i.imgur.com/MnOpQrS.jpg' },
-    { name: 'عين الملك - ميليم', url: 'https://i.imgur.com/TuVwXyZ.jpg' },
-    { name: 'هيتيني - نارم', url: 'https://i.imgur.com/AbCdEfG.jpg' },
-    { name: 'عين مانكيو - ايتاشي', url: 'https://i.imgur.com/HiJkLmN.jpg' },
-    { name: 'شارينغان - كاكاشي', url: 'https://i.imgur.com/OpQrStU.jpg' },
-    { name: 'تينتيغان', url: 'https://i.imgur.com/VwXyZaB.jpg' },
-    { name: 'عين الشيطان - توموكا', url: 'https://i.imgur.com/CdEfGhI.jpg' },
-    { name: 'عين كانيكي - توكيو غول', url: 'https://i.imgur.com/JkLmNoP.jpg' },
-    { name: 'عين ميتسوري - ديمون سلاير', url: 'https://i.imgur.com/QrStUvW.jpg' },
-    { name: 'عين نيزوكو', url: 'https://i.imgur.com/XyZaBcD.jpg' },
-    { name: 'عين رينجي', url: 'https://i.imgur.com/EfGhIjK.jpg' },
-    { name: 'عين إيتشيغو', url: 'https://i.imgur.com/LmNoPqR.jpg' },
-    { name: 'عين جيراييا', url: 'https://i.imgur.com/StUvWxY.jpg' },
-    { name: 'عين مادارا', url: 'https://i.imgur.com/ZaBcDeF.jpg' },
-    { name: 'عين نارم - ون بيس', url: 'https://i.imgur.com/GhIjKlM.jpg' },
-    { name: 'عين شانكس', url: 'https://i.imgur.com/NoePqRs.jpg' },
-    { name: 'عين زورو', url: 'https://i.imgur.com/TuVwXyA.jpg' },
-    { name: 'عين لوفي - غير', url: 'https://i.imgur.com/BcDeFgH.jpg' },
-    { name: 'عين غوكو', url: 'https://i.imgur.com/IjKlMnO.jpg' },
-    { name: 'عين فيغيتا', url: 'https://i.imgur.com/PqRsTuV.jpg' },
-    { name: 'عين بروللي', url: 'https://i.imgur.com/WxYzAbC.jpg' },
-    { name: 'عين إدوارد', url: 'https://i.imgur.com/DeFgHiJ.jpg' },
-    { name: 'عين روي موستانغ', url: 'https://i.imgur.com/KlMnOpQ.jpg' },
-    { name: 'عين الكيميائي', url: 'https://i.imgur.com/RsTuVwX.jpg' },
-    { name: 'عين ليلوش', url: 'https://i.imgur.com/YzAbCdE.jpg' },
-    { name: 'عين سوزاكو', url: 'https://i.imgur.com/FgHiJkA.jpg' },
-    { name: 'عين كيلوا', url: 'https://i.imgur.com/LmNoPqB.jpg' },
-    { name: 'عين غون', url: 'https://i.imgur.com/RsTuVwC.jpg' },
-    { name: 'عين هيسوكا', url: 'https://i.imgur.com/XyZaBcD.jpg' },
+    { name: 'شارينغان - ساسكي', url: 'https://i.postimg.cc/6qZ3bG1R/sasuke-sharingan.jpg' },
+    { name: 'رينيغان - ناغاتو', url: 'https://i.postimg.cc/8z4kV9cL/nagato-rinnegan.jpg' },
+    { name: 'جيوغان - بوروتو', url: 'https://i.postimg.cc/0j1bF3c2/boruto-jougan.jpg' },
+    { name: 'باياكوغان - هيناتا', url: 'https://i.postimg.cc/8gY5v1w2/hinata-byakugan.jpg' },
+    { name: 'مانكيو - ايتاشي', url: 'https://i.postimg.cc/1z6w2k3P/itachi-mangekyou.jpg' },
+    { name: 'شارينغان - كاكاشي', url: 'https://i.postimg.cc/4d2b2f2Q/kakashi-sharingan.jpg' },
+    { name: 'عين كانيكي - توكيو غول', url: 'https://i.postimg.cc/7h3g4k5L/kaneki-eyes.jpg' },
+    { name: 'عين نيزوكو', url: 'https://i.postimg.cc/2y8m1v2w/nezuko-eyes.jpg' },
+    { name: 'عين إيتشيغو - هولو', url: 'https://i.postimg.cc/9X5y2b3q/ichigo-hollow.jpg' },
+    { name: 'عين مادارا', url: 'https://i.postimg.cc/3j8z1q4w/madara-rinnegan.jpg' },
+    { name: 'عين نارم - ون بيس', url: 'https://i.postimg.cc/5n2k3b1v/nami-eyes.jpg' },
+    { name: 'عين شانكس', url: 'https://i.postimg.cc/7f1g2b3c/shanks-eyes.jpg' },
+    { name: 'عين زورو', url: 'https://i.postimg.cc/9q2h4b1m/zoro-eyes.jpg' },
+    { name: 'عين لوفي - غير 5', url: 'https://i.postimg.cc/1t3b2v4n/luffy-gear5.jpg' },
+    { name: 'عين غوكو - الترا', url: 'https://i.postimg.cc/6q1b2v3m/goku-ultra.jpg' },
+    { name: 'عين فيجيتا', url: 'https://i.postimg.cc/4n3b1v2q/vegeta-eyes.jpg' },
+    { name: 'عين برولي', url: 'https://i.postimg.cc/8z2b1v3w/broly-eyes.jpg' },
+    { name: 'عين إدوارد', url: 'https://i.postimg.cc/2y1b2v3q/edward-eyes.jpg' },
+    { name: 'عين روي موستانغ', url: 'https://i.postimg.cc/7h2b1v3m/mustang-eyes.jpg' },
+    { name: 'عين ليلوش - جياس', url: 'https://i.postimg.cc/9x1b2v3q/lelouch-geass.jpg' },
+    { name: 'عين كيلوا', url: 'https://i.postimg.cc/5n1b2v3m/killua-eyes.jpg' },
+    { name: 'عين غون', url: 'https://i.postimg.cc/8g1b2v3q/gon-eyes.jpg' },
+    { name: 'عين هيسوكا', url: 'https://i.postimg.cc/3j1b2v3w/hisoka-eyes.jpg' },
+    { name: 'عين ليفاي', url: 'https://i.postimg.cc/4d1b2v3q/levi-eyes.jpg' },
+    { name: 'عين ايرين', url: 'https://i.postimg.cc/6q1b2v3m/eren-eyes.jpg' },
+    { name: 'عين ميكاسا', url: 'https://i.postimg.cc/8z1b2v3w/mikasa-eyes.jpg' },
+    { name: 'عين تانجيرو', url: 'https://i.postimg.cc/2y1b2v3q/tanjiro-eyes.jpg' },
+    { name: 'عين زينيتسو', url: 'https://i.postimg.cc/7h1b2v3m/zenitsu-eyes.jpg' },
+    { name: 'عين غوجو', url: 'https://i.postimg.cc/9x1b2v3q/gojo-eyes.jpg' },
+    { name: 'عين ميغومي', url: 'https://i.postimg.cc/5n1b2v3m/megumi-eyes.jpg' },
+    { name: 'عين ديكو', url: 'https://i.postimg.cc/8g1b2v3q/deku-eyes.jpg' },
+    { name: 'عين باكوغو', url: 'https://i.postimg.cc/3j1b2v3w/bakugo-eyes.jpg' },
+    { name: 'عين تودوروكي', url: 'https://i.postimg.cc/4d1b2v3q/todoroki-eyes.jpg' },
+    { name: 'عين لايت', url: 'https://i.postimg.cc/6q1b2v3m/light-eyes.jpg' },
+    { name: 'عين L', url: 'https://i.postimg.cc/8z1b2v3w/L-deathnote.jpg' },
 ]
 
 function loadDB() {
@@ -606,21 +607,48 @@ async function startBot() {
             } catch (err) { console.error('Pexels Photo Error:', err); await sock.sendMessage(from, { text: '❌ فشل جلب الصور' }) }
         }
 
-        // ====== .اغنية - محسّن ======
-        else if (text.startsWith('.اغنية')) {
-            const query = text.replace('.اغنية', '').trim()
-            if (!query) return await sock.sendMessage(from, { text: 'اكتب .اغنية واسم الاغنية\nمثال: .اغنية انت معلم' })
-            const audioPath = `./song_${Date.now()}.mp3`
-            try {
-                await sock.sendMessage(from, { text: `🔍 بدور على: ${query}...` })
-                const r = await yts(query)
-                const video = r.videos[0]
-                if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
-                if (video.seconds > 420) return await sock.sendMessage(from, { text: '❌ الاغنية أطول من 7 دقائق' })
+        // ======.اغنية - نسخة yt-dlp ======
+else if (text.startsWith('.اغنية')) {
+    const query = text.replace('.اغنية', '').trim()
+    if (!query) return await sock.sendMessage(from, { text: 'اكتب.اغنية واسم الاغنية\nمثال:.اغنية انت معلم' })
+    const audioPath = `./song_${Date.now()}.mp3`
+    try {
+        await sock.sendMessage(from, { text: `🔍 بدور على: ${query}...` })
+        const r = await yts(query)
+        const video = r.videos[0]
+        if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
+        if (video.seconds > 420) return await sock.sendMessage(from, { text: '❌ الاغنية أطول من 7 دقائق' })
 
-                await sock.sendMessage(from, {
-                    text: `🎵 *لقيت الاغنية!*\n\n📌 الاسم: ${video.title}\n⏱️ المدة: ${video.timestamp}\n\n⏳ جاري التحميل...`
-                })
+        await sock.sendMessage(from, {
+            text: `🎵 *لقيت الاغنية!*\n\n📌 الاسم: ${video.title}\n⏱️ المدة: ${video.timestamp}\n\n⏳ جاري التحميل...`
+        })
+
+        await ytDlp(video.url, {
+            extractAudio: true,
+            audioFormat: 'mp3',
+            audioQuality: 0, // احسن جودة
+            output: audioPath,
+            limitRate: '500K', // عشان Railway ميحظرش
+        });
+
+        const audioBuffer = fs.readFileSync(audioPath)
+        if (audioBuffer.length > 16 * 1024 * 1024) {
+            fs.unlinkSync(audioPath)
+            return await sock.sendMessage(from, { text: '❌ الاغنية كبيرة اوي، واتساب اخره 16MB' })
+        }
+
+        await sock.sendMessage(from, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            fileName: `${video.title}.mp3`,
+        })
+        fs.unlinkSync(audioPath)
+    } catch (err) {
+        console.error('Song Error:', err)
+        if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath)
+        await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية، جرب اسم تاني او اللينك مباشر' })
+    }
+                }
 
                 await new Promise((resolve, reject) => {
                     const stream = ytdl(video.url, {

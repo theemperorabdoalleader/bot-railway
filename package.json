@@ -7,17 +7,14 @@
     "start": "node bot.js"
   },
   "dependencies": {
-    "@distube/ytdl-core": "^4.11.3",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "@whiskeysockets/baileys": "^7.0.0-rc13",
+    "@whiskeysockets/baileys": "^6.7.15",
     "axios": "^1.7.2",
-    "express": "^5.2.1",
+    "express": "^4.19.2",
     "fluent-ffmpeg": "^2.1.3",
-    "mathjs": "^12.4.1",
-    "pino": "^10.3.1",
+    "pino": "^9.3.2",
     "qrcode": "^1.5.4",
-    "qrcode-terminal": "^0.12.0",
-    "sharp": "^0.33.0",
+    "sharp": "^0.33.4",
+    "yt-dlp-exec": "^1.1.2", // <- دي مكان ytdl
     "yt-search": "^2.11.1"
   }
-}

@@ -240,7 +240,7 @@ function canUseBot(senderId, groupData, isAdmin) {
     const mode = groupData.mode || 'اعضاء'
     if (mode === 'اعضاء') return true
     if (mode === 'مشرفين') return isAdmin
-    if (mode === 'نخبة') return groupData.elite.includes(senderId) || isAdmin
+    if (mode === 'نخبة') return groupData.elite.includes(senderId) // <- شلت || isAdmin
     return true
 }
 

@@ -145,6 +145,11 @@ async function startBot() {
 
                 const r = await yts(query)
                 const video = r.videos[0]
+                if (video.seconds > 420) {
+    return await sock.sendMessage(from, {
+        text: '❌ الاغنية أطول من 7 دقائق'
+    })
+            }
                 if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
 
                 await sock.sendMessage(from, { text: `⏳ بحمل: ${video.title}` })

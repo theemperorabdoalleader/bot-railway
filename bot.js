@@ -9,14 +9,176 @@ const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg')
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 const ytdl = require('@distube/ytdl-core');
 const yts = require('yt-search');
+const QRCode = require('qrcode');
+const express = require('express');
 
 const SESSION_FOLDER = './session'
+const DB_FILE = './database.json'
+
+const app = express();
+let latestQR = null;
+app.get('/', async (req, res) => {
+    if (!latestQR) return res.send('<h1>مستني QR... شغل البوت</h1>');
+    const img = await QRCode.toDataURL(latestQR);
+    res.send(`<html><head><meta http-equiv="refresh" content="20"><meta name="viewport" content="width=device-width"><style>body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh}img{width:95%;max-width:450px}</style></head><body><img src="${img}"/></body></html>`);
+});
+app.listen(3000, '0.0.0.0', () => console.log('السيرفر شغال'))
+
+// رقم المطور - دايما يقدر يستخدم البوت
+const DEVELOPER_NUMBER = '201149182286'
+const DEVELOPER_JID = `${DEVELOPER_NUMBER}@s.whatsapp.net`
+
+// ====== أسئلة التحدي ======
+const TRIVIA_QUESTIONS = [
+    { q: '🌍 ما عاصمة فرنسا؟', a: 'باريس' },
+    { q: '🌍 ما عاصمة اليابان؟', a: 'طوكيو' },
+    { q: '🌍 ما عاصمة البرازيل؟', a: 'برازيليا' },
+    { q: '🌍 ما عاصمة أستراليا؟', a: 'كانبيرا' },
+    { q: '🌍 ما عاصمة كندا؟', a: 'أوتاوا' },
+    { q: '🌍 ما أكبر قارة في العالم؟', a: 'آسيا' },
+    { q: '🌍 ما أصغر دولة في العالم؟', a: 'الفاتيكان' },
+    { q: '🌍 ما أطول نهر في العالم؟', a: 'النيل' },
+    { q: '🌍 ما أعلى جبل في العالم؟', a: 'إيفرست' },
+    { q: '🌍 كم عدد قارات العالم؟', a: '7' },
+    { q: '⚽ من فاز بكأس العالم 2022؟', a: 'الأرجنتين' },
+    { q: '⚽ من فاز بكأس العالم 2018؟', a: 'فرنسا' },
+    { q: '⚽ في أي دولة أقيمت كأس العالم 2022؟', a: 'قطر' },
+    { q: '🔬 ما أسرع حيوان في العالم؟', a: 'الفهد' },
+    { q: '🔬 كم عدد أسنان الإنسان البالغ؟', a: '32' },
+    { q: '🔬 ما عدد عظام جسم الإنسان؟', a: '206' },
+    { q: '🔬 كم تبعد الشمس عن الأرض (تقريباً)؟', a: '150 مليون كم' },
+    { q: '🔬 ما أكبر كوكب في المجموعة الشمسية؟', a: 'المشتري' },
+    { q: '🔬 ما المادة الأكثر صلابة في الطبيعة؟', a: 'الماس' },
+    { q: '📖 من كتب روواية موبي ديك؟', a: 'هيرمان ملفيل' },
+    { q: '📖 ما أول سورة في القرآن الكريم؟', a: 'الفاتحة' },
+    { q: '📖 كم عدد سور القرآن الكريم؟', a: '114' },
+    { q: '📖 ما عدد آيات سورة البقرة؟', a: '286' },
+    { q: '🧮 كم ناتج 15 × 15؟', a: '225' },
+    { q: '🧮 كم ناتج 12 × 12؟', a: '144' },
+    { q: '🧮 ما جذر 144؟', a: '12' },
+    { q: '🧮 ما جذر 256؟', a: '16' },
+    { q: '🌙 ما أكبر محيطات العالم؟', a: 'المحيط الهادئ' },
+    { q: '🌙 كم عدد أيام السنة الكبيسة؟', a: '366' },
+    { q: '🌙 في أي عام وصل الإنسان للقمر؟', a: '1969' },
+    { q: '🎨 من رسم الموناليزا؟', a: 'ليوناردو دافنشي' },
+    { q: '🎨 ما اسم صاحب نظرية النسبية؟', a: 'أينشتاين' },
+    { q: '🎨 من اخترع الهاتف؟', a: 'جراهام بيل' },
+    { q: '🎨 من اخترع الكهرباء (المصباح)؟', a: 'إديسون' },
+    { q: '🌊 كم يغطي الماء من سطح الأرض؟', a: '71%' },
+    { q: '🌊 ما الغاز الأكثر وفرة في الغلاف الجوي؟', a: 'النيتروجين' },
+    { q: '🌊 ما الغاز الذي نتنفسه؟', a: 'الأكسجين' },
+    { q: '⭐ كم عدد نجوم علم الولايات المتحدة؟', a: '50' },
+    { q: '⭐ كم عدد ألوان قوس قزح؟', a: '7' },
+    { q: '⭐ ما عاصمة مصر؟', a: 'القاهرة' },
+    { q: '⭐ ما عاصمة السعودية؟', a: 'الرياض' },
+    { q: '⭐ ما عاصمة الإمارات؟', a: 'أبوظبي' },
+    { q: '⭐ ما عاصمة المغرب؟', a: 'الرباط' },
+    { q: '⭐ ما أكبر مدن العالم من حيث عدد السكان؟', a: 'طوكيو' },
+    { q: '⭐ ما أقدم حضارة في العالم؟', a: 'السومرية' },
+]
+
+// ====== نظام قاعدة البيانات ======
+function loadDB() {
+    if (!fs.existsSync(DB_FILE)) {
+        fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, puzzles: {}, groups: {} }, null, 2))
+    }
+    try {
+        const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))
+        if (!data.groups) data.groups = {}
+        if (!data.msgCount) data.msgCount = {}
+        if (!data.challenges) data.challenges = {}
+        if (!data.duels) data.duels = {}
+        return data
+    } catch {
+        return { users: {}, puzzles: {}, groups: {}, msgCount: {}, challenges: {}, duels: {} }
+    }
+}
+
+function saveDB(db) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2))
+}
+
+function getUser(db, id) {
+    if (!db.users[id]) {
+        db.users[id] = {
+            wallet: 500,
+            bank: 0,
+            xp: 0,
+            level: 1,
+            lastSalary: 0,
+            lastFish: 0,
+            lastAdventure: 0,
+            lastPuzzle: 0
+        }
+    }
+    return db.users[id]
+}
+
+function getGroup(db, groupId) {
+    if (!db.groups[groupId]) {
+        db.groups[groupId] = {
+            mode: 'اعضاء',
+            elite: [],
+            muted: [],
+            banned: [],
+            warnings: {}
+        }
+    }
+    if (!db.groups[groupId].banned) db.groups[groupId].banned = []
+    if (!db.groups[groupId].warnings) db.groups[groupId].warnings = {}
+    return db.groups[groupId]
+}
+
+function calcLevel(xp) {
+    return Math.floor(xp / 100) + 1
+}
+
+function addXP(user, amount) {
+    user.xp += amount
+    user.level = calcLevel(user.xp)
+}
+
+// ====== التحقق من صلاحية استخدام البوت ======
+function canUseBot(senderId, groupData, isAdmin) {
+    const cleanSender = senderId.split('@')[0]
+    if (cleanSender === DEVELOPER_NUMBER || senderId === DEVELOPER_JID) return true
+    if (!groupData) return true
+    const mode = groupData.mode || 'اعضاء'
+    if (mode === 'اعضاء') return true
+    if (mode === 'مشرفين') return isAdmin
+    if (mode === 'نخبة') return groupData.elite.includes(senderId) || isAdmin
+    return true
+}
+
+// ====== التحقق من صلاحية الإشراف ======
+function canModerate(senderId, isAdmin) {
+    const cleanSender = senderId.split('@')[0]
+    return cleanSender === DEVELOPER_NUMBER || senderId === DEVELOPER_JID || isAdmin
+}
+
+// ====== هل هو المطور؟ ======
+function isDeveloper(senderId) {
+    return senderId.split('@')[0] === DEVELOPER_NUMBER || senderId === DEVELOPER_JID
+}
+
+// ====== الألغاز ======
+const PUZZLES = [
+    { q: '🤔 ما هو الشيء الذي له أسنان لكن لا يعض؟', a: 'مشط', hint: 'يُستخدم للشعر' },
+    { q: '🤔 كلما أخذت منه كبر، ما هو؟', a: 'حفرة', hint: 'في الأرض' },
+    { q: '🤔 ما هو الشيء الذي يمشي على أربع في الصباح وعلى اثنين في الظهر وعلى ثلاث في المساء؟', a: 'إنسان', hint: 'نحن هم!' },
+    { q: '🤔 ما هو الشيء الذي ينام ويستيقظ ولا يتحرك؟', a: 'ساعة', hint: 'تُخبرك بالوقت' },
+    { q: '🤔 ما هو الشيء الذي له رأس وذيل ولكن ليس له جسم؟', a: 'عملة', hint: 'تستخدمها في البنك' },
+    { q: '🤔 ما الذي يطير بلا أجنحة ويسري بلا قدم؟', a: 'وقت', hint: 'لا يمكنك إيقافه' },
+    { q: '🤔 كلما غسلته يصبح أكثر قذارة، ما هو؟', a: 'ماء', hint: 'نشربه' },
+    { q: '🤔 ما هو الشيء الذي عندما تنظر إليه ترى نفسك؟', a: 'مرآة', hint: 'في الحمام' },
+    { q: '🤔 لديه مفاتيح ولكن لا أبواب له، ما هو؟', a: 'بيانو', hint: 'آلة موسيقية' },
+    { q: '🤔 ما هو الشيء الذي يكون أمامك دائماً لكنك لا تستطيع رؤيته؟', a: 'مستقبل', hint: 'الغد والأيام القادمة' }
+]
 
 async function startBot() {
     console.log('بشغل البوت...')
 
-    // 1. لو فيه SESSION_DATA في ENV هيحمله مرة واحدة بس
-    if (process.env.SESSION_DATA &&!fs.existsSync(path.join(SESSION_FOLDER, 'creds.json'))) {
+    if (process.env.SESSION_DATA && !fs.existsSync(path.join(SESSION_FOLDER, 'creds.json'))) {
         console.log('⏳ بيحمل السيشن من ENV...')
         fs.mkdirSync(SESSION_FOLDER, { recursive: true })
         const files = JSON.parse(Buffer.from(process.env.SESSION_DATA, 'base64').toString())
@@ -36,10 +198,8 @@ async function startBot() {
         qrTimeout: 60000
     })
 
-    // 2. هيطبع الكود مرة واحدة بس لما يسجل دخول جديد
     sock.ev.on('creds.update', async () => {
         await saveCreds()
-        // بيتأكد ان creds.json موجود قبل ما يطبعه
         if (fs.existsSync(path.join(SESSION_FOLDER, 'creds.json')) && !process.env.SESSION_DATA) {
             let files = {}
             const filenames = fs.readdirSync(SESSION_FOLDER)
@@ -58,12 +218,11 @@ async function startBot() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
         if (qr) {
-            console.log('\n========== امسح الكود ده بالكاميرا ==========')
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`
-            console.log(qrUrl)
-            console.log('=================================================\n')
+            latestQR = qr;
+            console.log('🔄 QR جديد جاهز — افتح اللينك في المتصفح')
         }
         if (connection === 'close') {
+            latestQR = null
             const statusCode = lastDisconnect?.error?.output?.statusCode
             if (statusCode === DisconnectReason.loggedOut) {
                 console.log('❌ تم تسجيل الخروج. امسح SESSION_DATA من ENV وسجل تاني')
@@ -71,30 +230,237 @@ async function startBot() {
             }
             setTimeout(() => startBot(), 5000)
         } else if (connection === 'open') {
+            latestQR = null
             console.log('✅ البوت اشتغل بنجاح واتصل بالواتساب 🔥')
         }
     })
 
-    // ====== الاوامر كلها زي ما هي ======
+    // ====== مراقبة انضمام أعضاء جدد لطرد المحظورين ======
+    sock.ev.on('group-participants.update', async (update) => {
+        const { id, participants, action } = update
+        if (action !== 'add') return
+        try {
+            const db = loadDB()
+            const groupData = getGroup(db, id)
+            for (const participant of participants) {
+                if (groupData.banned.includes(participant)) {
+                    await sock.groupParticipantsUpdate(id, [participant], 'remove')
+                    await sock.sendMessage(id, {
+                        text: `🚫 تم طرد @${participant.split('@')[0]} تلقائياً لأنه محظور من الجروب`,
+                        mentions: [participant]
+                    })
+                }
+            }
+        } catch (e) { }
+    })
+
+    // ====== الاوامر ======
     sock.ev.on('messages.upsert', async m => {
         const msg = m.messages[0]
         if (!msg.message || msg.key.fromMe) return
+
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
         const from = msg.key.remoteJid
         const name = msg.pushName || 'مجهول'
+        const senderId = msg.key.participant || msg.key.remoteJid
+        const isGroup = from.endsWith('@g.us')
 
-        if (text === '.هاي') { await sock.sendMessage(from, { text: `هاي يا ${name} 💪\nالبوت شغال 24 ساعة` }) }
-        else if (text === '.بنج') { await sock.sendMessage(from, { text: 'بنج 🏓 البوت صاحي' }) }
-        else if (text === '.منو') { await sock.sendMessage(from, { text: `انت ${name} يا زعيم 👑` }) }
-        // 4..الاوامر
-        else if (text === '.الاوامر') {
-            await sock.sendMessage(from, {
-                text: `*📜 اوامر البوت:*\n\n.هاي - ترحيب\n.بنج - تشيك البوت\n.منو - يعرف اسمك\n.ستيكر - رد على صورة تعملها ستيكر\n.ستيكر متحرك - رد على فيديو تعمله ستيكر متحرك\n.ترجمة نص - تترجم لانجليزي\n.حاسبة 5+3 - تحسبلك\n.مين ادمن - ادمن الجروب\n.رابط الجروب - رابط الدعوة\n.انذار @حد - انذار لعضو\n.صور كلمة - 3 صور افتراضي\n.صور كلمة 5 - تحديد عدد الصور (1-10)\n.اغنية اسم - تنزل الاغنية MP3\n.الاوامر - القايمة دي`
-            })
+        // ====== نظام الكتم: احذف رسائل المكتومين في الجروب ======
+        if (isGroup) {
+            const db = loadDB()
+            const groupData = getGroup(db, from)
+            if (groupData.muted.includes(senderId)) {
+                try { await sock.sendMessage(from, { delete: msg.key }) } catch (e) { }
+                return
+            }
         }
+
+        // ====== فحص إجابات التحدي النشط ======
+        if (isGroup && text && !text.startsWith('.')) {
+            try {
+                const db = loadDB()
+                const duel = db.duels[from]
+                if (duel) {
+                    const now = Date.now()
+                    if (now > duel.expiresAt) {
+                        delete db.duels[from]
+                        saveDB(db)
+                        await sock.sendMessage(from, {
+                            text: `⏰ انتهى وقت التحدي بين @${duel.challenger.split('@')[0]} و @${duel.challenged.split('@')[0]}!\n💔 لا رابح ولا خاسر — الفلوس رجعت لأصحابها`,
+                            mentions: [duel.challenger, duel.challenged]
+                        })
+                    } else if (senderId === duel.challenger || senderId === duel.challenged) {
+                        const userAnswer = text.trim().toLowerCase()
+                        const correctAnswer = duel.answer.trim().toLowerCase()
+                        if (userAnswer === correctAnswer || userAnswer.includes(correctAnswer) || correctAnswer.includes(userAnswer)) {
+                            const loserId = senderId === duel.challenger ? duel.challenged : duel.challenger
+                            const prize = duel.amount
+                            const winnerUser = getUser(db, senderId)
+                            const loserUser = getUser(db, loserId)
+                            if (loserUser.wallet >= prize) {
+                                loserUser.wallet -= prize
+                            } else {
+                                const fromBank = Math.min(loserUser.bank, prize - loserUser.wallet)
+                                loserUser.wallet = 0
+                                loserUser.bank -= fromBank
+                            }
+                            winnerUser.wallet += prize
+                            addXP(winnerUser, 30)
+                            delete db.duels[from]
+                            saveDB(db)
+                            await sock.sendMessage(from, {
+                                text:
+                                    `🎉 *انتهى التحدي!*\n\n` +
+                                    `✅ الإجابة الصحيحة: *${duel.answer}*\n\n` +
+                                    `🏆 الفائز: @${senderId.split('@')[0]}\n` +
+                                    `💸 الخاسر: @${loserId.split('@')[0]}\n\n` +
+                                    `💰 المبلغ المنقول: ${prize} 🪙\n` +
+                                    `⭐ +30 XP للفائز`,
+                                mentions: [senderId, loserId]
+                            })
+                        }
+                    }
+                }
+            } catch (e) { }
+        }
+
+        // ====== عداد الرسائل اليومية ======
+        if (isGroup && text) {
+            try {
+                const db = loadDB()
+                const today = new Date().toISOString().slice(0, 10)
+                if (!db.msgCount[from]) db.msgCount[from] = {}
+                if (!db.msgCount[from][senderId]) db.msgCount[from][senderId] = {}
+                if (!db.msgCount[from][senderId][today]) db.msgCount[from][senderId][today] = 0
+                db.msgCount[from][senderId][today]++
+                saveDB(db)
+            } catch (e) { }
+        }
+
+        // ====== فحص الصلاحية لاستخدام البوت في الجروبات ======
+        if (isGroup && text.startsWith('.')) {
+            try {
+                const db = loadDB()
+                const groupData = getGroup(db, from)
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canUseBot(senderId, groupData, isAdmin)) {
+                    const modeTxt = groupData.mode === 'مشرفين' ? 'المشرفين فقط' : 'النخبة فقط'
+                    await sock.sendMessage(from, { text: `🔒 البوت في وضع *${modeTxt}* - مش تقدر تستخدمه` })
+                    return
+                }
+            } catch (e) { }
+        }
+
+        // ================================================================
+        // ========================= الأوامر ==============================
+        // ================================================================
+
+        // ====== عام ======
+        if (text === '.هاي') {
+            await sock.sendMessage(from, { text: `هاي يا ${name} 💪\nالبوت شغال 24 ساعة` })
+        }
+
+        else if (text === '.بنج') {
+            await sock.sendMessage(from, { text: 'بنج 🏓 البوت صاحي' })
+        }
+
+        else if (text === '.منو') {
+            await sock.sendMessage(from, { text: `انت ${name} يا زعيم 👑` })
+        }
+
+        // ====== .الاوامر - القائمة الكاملة ======
+        else if (text === '.الاوامر') {
+            const menu =
+                `╔══════════════════════╗\n` +
+                `║   🤖 *اوامر البوت*   ║\n` +
+                `╚══════════════════════╝\n\n` +
+
+                `━━━━━━━ 🔧 *عام* ━━━━━━━\n` +
+                `▸ .هاي — ترحيب\n` +
+                `▸ .بنج — تشيك البوت\n` +
+                `▸ .منو — يعرف اسمك\n` +
+                `▸ .الاوامر — قائمة الأوامر\n\n` +
+
+                `━━━━ 📊 *إحصائيات* ━━━━\n` +
+                `▸ .احصائيات — إحصائيات الجروب الكاملة\n` +
+                `▸ .نشاط — أكثر 10 أعضاء نشاطاً اليوم\n` +
+                `▸ .رسائلي — عدد رسائلك اليوم وترتيبك\n` +
+                `▸ .رسائلي @شخص — رسائل شخص محدد اليوم\n\n` +
+
+                `━━━━━━ 🎨 *وسائط* ━━━━━━\n` +
+                `▸ .ستيكر — رد على صورة تعملها ستيكر\n` +
+                `▸ .ستيكر متحرك — رد على فيديو ستيكر متحرك\n` +
+                `▸ .صور [كلمة] — 3 صور افتراضي\n` +
+                `▸ .صور [كلمة] [1-10] — تحديد عدد الصور\n` +
+                `▸ .اغنية [اسم] — تنزيل اغنية MP3\n\n` +
+
+                `━━━━━━ 🛠️ *أدوات* ━━━━━━\n` +
+                `▸ .ترجمة [نص] — ترجمة عربي لانجليزي\n` +
+                `▸ .حاسبة [معادلة] — حاسبة (مثال: .حاسبة 5+3)\n` +
+                `▸ .مين ادمن — عرض مشرفي الجروب\n` +
+                `▸ .رابط الجروب — رابط دعوة الجروب\n\n` +
+
+                `━━━ 🛡️ *إشراف (مشرفين)* ━━━\n` +
+                `▸ .مود مشرفين — البوت للمشرفين فقط\n` +
+                `▸ .مود نخبة — البوت للنخبة فقط\n` +
+                `▸ .مود اعضاء — البوت للكل\n` +
+                `▸ .اضافة للنخبة @شخص — إضافة للنخبة\n` +
+                `▸ .تحذير @شخص [سبب] — تحذير رسمي بسبب\n` +
+                `▸ .انذار @شخص — انذار (3 = طرد تلقائي)\n` +
+                `▸ .طرد @شخص — طرد عضو\n` +
+                `▸ .باند @شخص [سبب] — حظر دائم\n` +
+                `▸ .الغاء باند @شخص — رفع الحظر\n` +
+                `▸ .قائمة الباند — قائمة المحظورين\n` +
+                `▸ .كتم @شخص — كتم عضو\n` +
+                `▸ .الغاء كتم @شخص — رفع الكتم\n` +
+                `▸ .قائمة المكتومين — قائمة المكتومين\n\n` +
+
+                `━━━━━ 💰 *اقتصاد* ━━━━━\n` +
+                `▸ .فلوسي — رصيدك في المحفظة والبنك\n` +
+                `▸ .مستواي — مستواك وشريط الخبرة\n` +
+                `▸ .راتب — راتب يومي (كل 24 ساعة)\n` +
+                `▸ .ايداع [مبلغ] — إيداع في البنك\n` +
+                `▸ .سحب [مبلغ] — سحب من البنك\n` +
+                `▸ .تحويل @شخص [مبلغ] — تحويل فلوس\n` +
+                `▸ .اغنى — ترتيب أغنى الأعضاء\n` +
+                `▸ .مستويات — ترتيب أعلى مستوى\n\n` +
+
+                `━━━━━━ 🎮 *ألعاب* ━━━━━━\n` +
+                `▸ .زهر [مبلغ] — لعبة الزهر\n` +
+                `▸ .تخمين [مبلغ] [1-10] — خمن الرقم واكسب ×3\n` +
+                `▸ .حجر [مبلغ] [حجر/ورقة/مقص] — حجر ورقة مقص\n` +
+                `▸ .صيد — اصطياد السمك (كل 30 دقيقة)\n` +
+                `▸ .مغامرة — مغامرة عشوائية (كل ساعة)\n\n` +
+
+                `━━━━━━ 🧩 *ألغاز* ━━━━━━\n` +
+                `▸ .لغز — لغز جديد بمكافأة 300 🪙\n` +
+                `▸ .جواب [إجابة] — الرد على اللغز\n` +
+                `▸ .تلميح — تلميح مقابل 50 🪙\n\n` +
+
+                `━━━━━━ ⚔️ *تحدي* ━━━━━━\n` +
+                `▸ .تحدي @شخص [مبلغ] — تحدي ثقافي برهان\n` +
+                `▸ .قبول — قبول التحدي\n` +
+                `▸ .رفض — رفض التحدي\n` +
+                `  📌 أول واحد يجاوب صح يكسب الرهان!\n\n` +
+
+                `━━━━━━ 🛒 *متجر* ━━━━━━\n` +
+                `▸ .متجر — عرض الألقاب المتاحة وأسعارها\n` +
+                `▸ .اشتري [رقم] — شراء لقب بالعملة\n` +
+                `▸ .لقبي — عرض لقبك الحالي\n` +
+                `▸ .ازالة لقب — إزالة لقبك\n\n` +
+
+                `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `💡 *ملاحظة:* البوت لازم يكون مشرف\n` +
+                `للأوامر اللي بتطرد أو تحذف رسائل`
+
+            await sock.sendMessage(from, { text: menu })
+        }
+
+        // ====== وسائط ======
         else if (text === '.ستيكر') {
             const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-            if (!quoted?.imageMessage) { return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب.ستيكر' }) }
+            if (!quoted?.imageMessage) { return await sock.sendMessage(from, { text: '📸 رد على صورة واكتب .ستيكر' }) }
             try {
                 await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر...' })
                 const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {}, { logger: pino({ level: 'silent' }), reuploadRequest: sock.updateMediaMessage })
@@ -102,104 +468,1044 @@ async function startBot() {
                 await sock.sendMessage(from, { sticker: webpBuffer })
             } catch (err) { console.error('Sticker Error:', err); await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر' }) }
         }
+
         else if (text === '.ستيكر متحرك') {
             const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
-            if (!quoted?.videoMessage) { return await sock.sendMessage(from, { text: '🎥 رد على فيديو واكتب.ستيكر متحرك' }) }
+            if (!quoted?.videoMessage) { return await sock.sendMessage(from, { text: '🎥 رد على فيديو واكتب .ستيكر متحرك' }) }
             let inputPath; let outputPath;
             try {
                 await sock.sendMessage(from, { text: '⏳ جاري إنشاء الستيكر المتحرك...' })
                 const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {}, { logger: pino({ level: 'silent' }), reuploadRequest: sock.updateMediaMessage })
-                inputPath = `./temp_${Date.now()}.mp4`; outputPath = `./temp_${Date.now()}.webp`;
+                inputPath = `./temp_${Date.now()}.mp4`; outputPath = `./temp_${Date.now()}.webp`
                 fs.writeFileSync(inputPath, buffer)
                 await new Promise((resolve, reject) => { ffmpeg(inputPath).outputOptions(['-vcodec', 'libwebp', '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,fps=15', '-loop', '0', '-quality', '60', '-compression_level', '6', '-an', '-vsync', '0', '-t', '8']).save(outputPath).on('end', resolve).on('error', reject) })
-                const webpBuffer = fs.readFileSync(outputPath); await sock.sendMessage(from, { sticker: webpBuffer })
-                if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
-            } catch (err) { console.error('Sticker Error:', err); if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath); if (outputPath && fs.existsSync(outputPath)) fs.unlinkSync(outputPath); await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر المتحرك' }) }
+                const webpBuffer = fs.readFileSync(outputPath)
+                await sock.sendMessage(from, { sticker: webpBuffer })
+                if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
+                if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
+            } catch (err) {
+                console.error('Sticker Error:', err)
+                if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
+                if (outputPath && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
+                await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر المتحرك' })
+            }
         }
-        else if (text.startsWith('.ترجمة')) {
-            const txt = text.replace('.ترجمة', '').trim()
-            if (!txt) return await sock.sendMessage(from, { text: 'اكتب.ترجمة والنص' })
-            try { const res = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(txt)}`); await sock.sendMessage(from, { text: `🇪🇬 ${txt}\n🇺🇸 ${res.data[0][0][0]}` }) } catch { await sock.sendMessage(from, { text: 'فشلت الترجمة 😢' }) }
-        }
-        else if (text.startsWith('.حاسبة')) {
-            const calc = text.replace('.حاسبة', '').trim()
-            if (!calc) return await sock.sendMessage(from, { text: 'اكتب.حاسبة 5+3' })
-            try { const result = eval(calc.replace(/[^0-9+\-*/.() ]/g, '')); await sock.sendMessage(from, { text: `${calc} = ${result}` }) } catch { await sock.sendMessage(from, { text: 'معادلة غلط 😅' }) }
-        }
-        else if (text === '.مين ادمن') {
-            if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
-            const group = await sock.groupMetadata(from); const admins = group.participants.filter(p => p.admin).map(p => `@${p.id.split('@')[0]}`).join('\n')
-            await sock.sendMessage(from, { text: `*ادمن الجروب:*\n${admins}`, mentions: group.participants.filter(p => p.admin).map(p => p.id) })
-        }
-            
 
-// 13..اغنية
+        else if (text.startsWith('.صور')) {
+            const parts = text.replace('.صور', '').trim().split(' ')
+            let count = 3; let query = parts.join(' ')
+            const lastWord = parts[parts.length - 1]
+            if (!isNaN(lastWord) && lastWord !== '') { count = Math.min(Math.max(parseInt(lastWord), 1), 10); query = parts.slice(0, -1).join(' ') }
+            if (!query) return await sock.sendMessage(from, { text: 'اكتب .صور وموضوع البحث\nمثال: .صور كريستيانو' })
+            try {
+                await sock.sendMessage(from, { text: `⏳ جاري البحث عن ${count} صورة ${query}...` })
+                const res = await axios.get('https://api.pexels.com/v1/search', { headers: { Authorization: process.env.PEXELS_API_KEY }, params: { query, per_page: count, orientation: 'portrait' } })
+                const photos = res.data.photos
+                if (!photos.length) return await sock.sendMessage(from, { text: `❌ مش لاقي صور عن ${query}` })
+                for (const photo of photos) {
+                    const response = await axios.get(photo.src.large, { responseType: 'arraybuffer' })
+                    const buffer = Buffer.from(response.data)
+                    await sock.sendMessage(from, { image: buffer, caption: `📸 ${query}` })
+                }
+            } catch (err) { console.error('Pexels Photo Error:', err); await sock.sendMessage(from, { text: '❌ فشل جلب الصور' }) }
+        }
+
         else if (text.startsWith('.اغنية')) {
             const query = text.replace('.اغنية', '').trim()
-            if (!query) return await sock.sendMessage(from, { text: 'اكتب.اغنية واسم الاغنية\nمثال:.اغنية انت معلم' })
-
+            if (!query) return await sock.sendMessage(from, { text: 'اكتب .اغنية واسم الاغنية\nمثال: .اغنية انت معلم' })
             const audioPath = `./song_${Date.now()}.mp3`
-
             try {
                 await sock.sendMessage(from, { text: `⏳ بدور على ${query}...` })
-
                 const r = await yts(query)
                 const video = r.videos[0]
-                if (video.seconds > 420) {
-    return await sock.sendMessage(from, {
-        text: '❌ الاغنية أطول من 7 دقائق'
-    })
-            }
                 if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
-
+                if (video.seconds > 420) { return await sock.sendMessage(from, { text: '❌ الاغنية أطول من 7 دقائق' }) }
                 await sock.sendMessage(from, { text: `⏳ بحمل: ${video.title}` })
-
                 const stream = ytdl(video.url, { filter: 'audioonly', quality: 'highestaudio' })
                 const writeStream = fs.createWriteStream(audioPath)
-
                 stream.pipe(writeStream)
-                await new Promise((resolve, reject) => {
-                    writeStream.on('finish', resolve)
-                    writeStream.on('error', reject)
-                })
-
+                await new Promise((resolve, reject) => { writeStream.on('finish', resolve); writeStream.on('error', reject) })
                 const audioBuffer = fs.readFileSync(audioPath)
-                await sock.sendMessage(from, {
-                    audio: audioBuffer,
-                    mimetype: 'audio/mpeg',
-                    fileName: `${video.title}.mp3`,
-                    ptt: false
-                })
-
+                await sock.sendMessage(from, { audio: audioBuffer, mimetype: 'audio/mpeg', fileName: `${video.title}.mp3`, ptt: false })
                 fs.unlinkSync(audioPath)
-
             } catch (err) {
                 console.error('Song Error:', err)
                 if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath)
                 await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية' })
             }
-                                                                         }
-        else if (text === '.رابط الجروب') {
-            if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
-            const code = await sock.groupInviteCode(from); await sock.sendMessage(from, { text: `رابط الجروب:\nhttps://chat.whatsapp.com/${code}` })
         }
-        else if (text.startsWith('.انذار')) {
+
+        // ====== أدوات ======
+        else if (text.startsWith('.ترجمة')) {
+            const txt = text.replace('.ترجمة', '').trim()
+            if (!txt) return await sock.sendMessage(from, { text: 'اكتب .ترجمة والنص' })
+            try {
+                const res = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(txt)}`)
+                await sock.sendMessage(from, { text: `🇪🇬 ${txt}\n🇺🇸 ${res.data[0][0][0]}` })
+            } catch { await sock.sendMessage(from, { text: 'فشلت الترجمة 😢' }) }
+        }
+
+        else if (text.startsWith('.حاسبة')) {
+            const calc = text.replace('.حاسبة', '').trim()
+            if (!calc) return await sock.sendMessage(from, { text: 'اكتب .حاسبة 5+3' })
+            try {
+                const result = eval(calc.replace(/[^0-9+\-*/.() ]/g, ''))
+                await sock.sendMessage(from, { text: `🔢 ${calc} = *${result}*` })
+            } catch { await sock.sendMessage(from, { text: 'معادلة غلط 😅' }) }
+        }
+
+        else if (text === '.مين ادمن') {
+            if (!isGroup) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
+            const group = await sock.groupMetadata(from)
+            const admins = group.participants.filter(p => p.admin).map(p => `@${p.id.split('@')[0]}`).join('\n')
+            await sock.sendMessage(from, { text: `*👑 ادمن الجروب:*\n\n${admins}`, mentions: group.participants.filter(p => p.admin).map(p => p.id) })
+        }
+
+        else if (text === '.رابط الجروب') {
+            if (!isGroup) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
+            const code = await sock.groupInviteCode(from)
+            await sock.sendMessage(from, { text: `🔗 رابط الجروب:\nhttps://chat.whatsapp.com/${code}` })
+        }
+
+        // ================================================================
+        // ==================== نظام الإشراف =============================
+        // ================================================================
+
+        // .مود مشرفين
+        else if (text === '.مود مشرفين') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يغيروا الوضع' })
+                const db = loadDB(); const groupData = getGroup(db, from)
+                groupData.mode = 'مشرفين'; saveDB(db)
+                await sock.sendMessage(from, { text: '🛡️ *تم تفعيل وضع المشرفين*\nالبوت دلوقتي للمشرفين فقط' })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .مود نخبة
+        else if (text === '.مود نخبة') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يغيروا الوضع' })
+                const db = loadDB(); const groupData = getGroup(db, from)
+                groupData.mode = 'نخبة'; saveDB(db)
+                await sock.sendMessage(from, { text: '⭐ *تم تفعيل وضع النخبة*\nالبوت دلوقتي للنخبة والمشرفين فقط' })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .مود اعضاء
+        else if (text === '.مود اعضاء') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يغيروا الوضع' })
+                const db = loadDB(); const groupData = getGroup(db, from)
+                groupData.mode = 'اعضاء'; saveDB(db)
+                await sock.sendMessage(from, { text: '✅ *تم تفعيل وضع الأعضاء*\nالبوت دلوقتي للكل' })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .اضافة للنخبة
+        else if (text.startsWith('.اضافة للنخبة')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-            if (!mentioned || mentioned.length === 0) { await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال:.انذار @احمد' }) } else {
-                await sock.sendMessage(from, { text: `⚠️ انذار لـ @${mentioned[0].split('@')[0]}\nالتزم بقوانين الجروب`, mentions: mentioned })
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .اضافة للنخبة @احمد' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يضيفوا للنخبة' })
+                const db = loadDB(); const groupData = getGroup(db, from)
+                const targetId = mentioned[0]
+                if (groupData.elite.includes(targetId)) {
+                    return await sock.sendMessage(from, { text: `⭐ @${targetId.split('@')[0]} موجود في النخبة أصلاً`, mentions: [targetId] })
+                }
+                groupData.elite.push(targetId); saveDB(db)
+                await sock.sendMessage(from, { text: `⭐ *تم إضافة @${targetId.split('@')[0]} للنخبة!*`, mentions: [targetId] })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .تحذير @شخص [سبب] - تحذير رسمي بسبب محدد (بدون عداد)
+        else if (text.startsWith('.تحذير')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .تحذير @احمد الكلام الوحش' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يحذروا' })
+                const targetId = mentioned[0]
+                const targetClean = targetId.split('@')[0]
+                if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تحذر المطور!' })
+                // استخراج السبب بعد المنشن
+                const reason = text.replace('.تحذير', '').replace(`@${targetClean}`, '').trim() || 'لم يُذكر سبب'
+                await sock.sendMessage(from, {
+                    text:
+                        `╔═══════════════════╗\n` +
+                        `║   ⚠️ *تحـــذيـر*   ║\n` +
+                        `╚═══════════════════╝\n\n` +
+                        `👤 العضو: @${targetClean}\n` +
+                        `📋 السبب: ${reason}\n` +
+                        `👮 بواسطة: ${name}\n\n` +
+                        `🔴 *التزم بقوانين الجروب أو سيتم اتخاذ إجراءات أشد*`,
+                    mentions: [targetId]
+                })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .انذار @شخص - مع نظام 3 انذارات والطرد
+        else if (text.startsWith('.انذار')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .انذار @احمد' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يعطوا إنذارات' })
+                const targetId = mentioned[0]
+                const targetClean = targetId.split('@')[0]
+                if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تنذر المطور!' })
+                const db = loadDB(); const groupData = getGroup(db, from)
+                groupData.warnings[targetId] = (groupData.warnings[targetId] || 0) + 1
+                const warnCount = groupData.warnings[targetId]
+                saveDB(db)
+                if (warnCount >= 3) {
+                    groupData.warnings[targetId] = 0; saveDB(db)
+                    try {
+                        await sock.groupParticipantsUpdate(from, [targetId], 'remove')
+                        await sock.sendMessage(from, {
+                            text: `🚨 *تم طرد @${targetClean}!*\nوصل لـ 3 إنذارات وتم طرده من الجروب`,
+                            mentions: [targetId]
+                        })
+                    } catch {
+                        await sock.sendMessage(from, {
+                            text: `⚠️ @${targetClean} وصل لـ 3 إنذارات\nمقدرتش أطرده - تأكد إن البوت مشرف`,
+                            mentions: [targetId]
+                        })
+                    }
+                } else {
+                    const bars = '🔴'.repeat(warnCount) + '⚪'.repeat(3 - warnCount)
+                    await sock.sendMessage(from, {
+                        text: `⚠️ *إنذار لـ @${targetClean}!*\n\n${bars} ${warnCount}/3\n${warnCount === 2 ? '🚨 *إنذار أخير! الإنذار الجاي = طرد!*' : 'التزم بقوانين الجروب'}`,
+                        mentions: [targetId]
+                    })
+                }
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .طرد @شخص
+        else if (text.startsWith('.طرد')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .طرد @احمد' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يطردوا' })
+                const targetId = mentioned[0]
+                const targetClean = targetId.split('@')[0]
+                if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تطرد المطور!' })
+                try {
+                    await sock.groupParticipantsUpdate(from, [targetId], 'remove')
+                    await sock.sendMessage(from, { text: `🚪 *تم طرد @${targetClean} من الجروب!*`, mentions: [targetId] })
+                } catch {
+                    await sock.sendMessage(from, { text: '❌ مقدرتش أطرد الشخص - تأكد إن البوت مشرف' })
+                }
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .باند @شخص [سبب] - حظر دائم
+        else if (text.startsWith('.باند')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .باند @احمد السبب' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يحظروا' })
+                const targetId = mentioned[0]
+                const targetClean = targetId.split('@')[0]
+                if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تحظر المطور!' })
+                const reason = text.replace('.باند', '').replace(`@${targetClean}`, '').trim() || 'لم يُذكر سبب'
+                const db = loadDB(); const groupData = getGroup(db, from)
+                if (groupData.banned.includes(targetId)) {
+                    return await sock.sendMessage(from, { text: `🚫 @${targetClean} محظور أصلاً`, mentions: [targetId] })
+                }
+                groupData.banned.push(targetId); saveDB(db)
+                try {
+                    await sock.groupParticipantsUpdate(from, [targetId], 'remove')
+                } catch { }
+                await sock.sendMessage(from, {
+                    text:
+                        `🚫 *تم الحظر الدائم!*\n\n` +
+                        `👤 العضو: @${targetClean}\n` +
+                        `📋 السبب: ${reason}\n` +
+                        `👮 بواسطة: ${name}\n\n` +
+                        `⛔ لن يتمكن من الانضمام للجروب مجدداً`,
+                    mentions: [targetId]
+                })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .الغاء باند @شخص
+        else if (text.startsWith('.الغاء باند')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .الغاء باند @احمد' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يرفعوا الحظر' })
+                const targetId = mentioned[0]
+                const targetClean = targetId.split('@')[0]
+                const db = loadDB(); const groupData = getGroup(db, from)
+                if (!groupData.banned.includes(targetId)) {
+                    return await sock.sendMessage(from, { text: `✅ @${targetClean} مش محظور أصلاً`, mentions: [targetId] })
+                }
+                groupData.banned = groupData.banned.filter(id => id !== targetId); saveDB(db)
+                await sock.sendMessage(from, {
+                    text: `✅ *تم رفع الحظر عن @${targetClean}*\nيقدر يرجع للجروب دلوقتي`,
+                    mentions: [targetId]
+                })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .قائمة الباند
+        else if (text === '.قائمة الباند') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const db = loadDB(); const groupData = getGroup(db, from)
+            if (!groupData.banned || groupData.banned.length === 0) {
+                return await sock.sendMessage(from, { text: '✅ مفيش حد محظور في الجروب' })
+            }
+            const list = groupData.banned.map((id, i) => `${i + 1}. @${id.split('@')[0]}`).join('\n')
+            await sock.sendMessage(from, {
+                text: `🚫 *قائمة المحظورين:*\n\n${list}`,
+                mentions: groupData.banned
+            })
+        }
+
+        // .كتم @شخص
+        else if (text.startsWith('.كتم')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .كتم @احمد' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يكتموا' })
+                const targetId = mentioned[0]
+                const targetClean = targetId.split('@')[0]
+                if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تكتم المطور!' })
+                const db = loadDB(); const groupData = getGroup(db, from)
+                if (groupData.muted.includes(targetId)) {
+                    return await sock.sendMessage(from, { text: `🔇 @${targetClean} مكتوم أصلاً`, mentions: [targetId] })
+                }
+                groupData.muted.push(targetId); saveDB(db)
+                await sock.sendMessage(from, {
+                    text: `🔇 *تم كتم @${targetClean}*\nرسائله هتتحذف تلقائياً`,
+                    mentions: [targetId]
+                })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .الغاء كتم @شخص
+        else if (text.startsWith('.الغاء كتم')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .الغاء كتم @احمد' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يلغوا الكتم' })
+                const targetId = mentioned[0]
+                const targetClean = targetId.split('@')[0]
+                const db = loadDB(); const groupData = getGroup(db, from)
+                if (!groupData.muted.includes(targetId)) {
+                    return await sock.sendMessage(from, { text: `🔊 @${targetClean} مش مكتوم أصلاً`, mentions: [targetId] })
+                }
+                groupData.muted = groupData.muted.filter(id => id !== targetId); saveDB(db)
+                await sock.sendMessage(from, {
+                    text: `🔊 *تم إلغاء كتم @${targetClean}*\nيقدر يتكلم دلوقتي`,
+                    mentions: [targetId]
+                })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        // .قائمة المكتومين
+        else if (text === '.قائمة المكتومين') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            const db = loadDB(); const groupData = getGroup(db, from)
+            if (!groupData.muted || groupData.muted.length === 0) {
+                return await sock.sendMessage(from, { text: '✅ مفيش حد مكتوم في الجروب' })
+            }
+            const list = groupData.muted.map((id, i) => `${i + 1}. @${id.split('@')[0]}`).join('\n')
+            await sock.sendMessage(from, {
+                text: `🔇 *قائمة المكتومين:*\n\n${list}`,
+                mentions: groupData.muted
+            })
+        }
+
+        // ================================================================
+        // =================== نظام الاقتصاد =============================
+        // ================================================================
+
+        else if (text === '.فلوسي') {
+            const db = loadDB(); const user = getUser(db, senderId); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `💰 *رصيدك يا ${name}:*\n\n` +
+                    `👛 المحفظة: ${user.wallet.toLocaleString()} 🪙\n` +
+                    `🏦 البنك: ${user.bank.toLocaleString()} 🪙\n` +
+                    `💎 الإجمالي: ${(user.wallet + user.bank).toLocaleString()} 🪙`
+            })
+        }
+
+        else if (text === '.مستواي') {
+            const db = loadDB(); const user = getUser(db, senderId); saveDB(db)
+            const xpNeeded = user.level * 100
+            const xpProgress = user.xp - ((user.level - 1) * 100)
+            const filled = Math.min(10, Math.floor((xpProgress / xpNeeded) * 10))
+            const bar = '█'.repeat(filled) + '░'.repeat(10 - filled)
+            await sock.sendMessage(from, {
+                text: `⭐ *مستواك يا ${name}:*\n\n` +
+                    `🏅 المستوى: ${user.level}\n` +
+                    `✨ الخبرة: ${user.xp} XP\n` +
+                    `📊 [${bar}] ${xpProgress}/${xpNeeded}`
+            })
+        }
+
+        else if (text === '.راتب') {
+            const db = loadDB(); const user = getUser(db, senderId)
+            const now = Date.now(); const cooldown = 24 * 60 * 60 * 1000
+            const remaining = cooldown - (now - user.lastSalary)
+            if (remaining > 0) {
+                const h = Math.floor(remaining / 3600000); const min = Math.floor((remaining % 3600000) / 60000)
+                return await sock.sendMessage(from, { text: `⏰ خد راتبك بكرة!\nالوقت المتبقي: ${h} ساعة و ${min} دقيقة` })
+            }
+            const salary = 200 + (user.level * 50)
+            user.wallet += salary; user.lastSalary = now; addXP(user, 10); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `💵 *تم صرف راتبك يا ${name}!*\n\n` +
+                    `💰 الراتب: +${salary} 🪙\n✨ خبرة: +10 XP\n` +
+                    `👛 رصيدك الحالي: ${user.wallet.toLocaleString()} 🪙`
+            })
+        }
+
+        else if (text.startsWith('.ايداع')) {
+            const amount = parseInt(text.replace('.ايداع', '').trim())
+            if (isNaN(amount) || amount <= 0) return await sock.sendMessage(from, { text: 'اكتب المبلغ صح\nمثال: .ايداع 100' })
+            const db = loadDB(); const user = getUser(db, senderId)
+            if (user.wallet < amount) return await sock.sendMessage(from, { text: `❌ ما عندكش كافي!\nرصيدك: ${user.wallet} 🪙` })
+            user.wallet -= amount; user.bank += amount; addXP(user, 5); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `🏦 *تم الإيداع بنجاح!*\n\n💸 المودع: ${amount.toLocaleString()} 🪙\n` +
+                    `👛 المحفظة: ${user.wallet.toLocaleString()} 🪙\n🏦 البنك: ${user.bank.toLocaleString()} 🪙`
+            })
+        }
+
+        else if (text.startsWith('.سحب')) {
+            const amount = parseInt(text.replace('.سحب', '').trim())
+            if (isNaN(amount) || amount <= 0) return await sock.sendMessage(from, { text: 'اكتب المبلغ صح\nمثال: .سحب 100' })
+            const db = loadDB(); const user = getUser(db, senderId)
+            if (user.bank < amount) return await sock.sendMessage(from, { text: `❌ ما عندكش كافي في البنك!\nرصيد البنك: ${user.bank} 🪙` })
+            user.bank -= amount; user.wallet += amount; addXP(user, 5); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `💵 *تم السحب بنجاح!*\n\n💸 المسحوب: ${amount.toLocaleString()} 🪙\n` +
+                    `👛 المحفظة: ${user.wallet.toLocaleString()} 🪙\n🏦 البنك: ${user.bank.toLocaleString()} 🪙`
+            })
+        }
+
+        else if (text.startsWith('.تحويل')) {
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص\nمثال: .تحويل @احمد 500' })
+            const parts = text.split(' '); const amount = parseInt(parts[parts.length - 1])
+            if (isNaN(amount) || amount <= 0) return await sock.sendMessage(from, { text: 'اكتب المبلغ صح\nمثال: .تحويل @احمد 500' })
+            const targetId = mentioned[0]
+            if (targetId === senderId) return await sock.sendMessage(from, { text: '😅 ما تقدرش تحول لنفسك!' })
+            const db = loadDB(); const sender = getUser(db, senderId)
+            if (sender.wallet < amount) return await sock.sendMessage(from, { text: `❌ ما عندكش كافي!\nرصيدك: ${sender.wallet} 🪙` })
+            const target = getUser(db, targetId)
+            sender.wallet -= amount; target.wallet += amount; addXP(sender, 5); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `✅ *تم التحويل بنجاح!*\n\n💸 المبلغ: ${amount.toLocaleString()} 🪙\n` +
+                    `📤 إلى: @${targetId.split('@')[0]}\n👛 رصيدك الحالي: ${sender.wallet.toLocaleString()} 🪙`,
+                mentions: [targetId]
+            })
+        }
+
+        else if (text.startsWith('.زهر')) {
+            const amount = parseInt(text.replace('.زهر', '').trim())
+            if (isNaN(amount) || amount <= 0) return await sock.sendMessage(from, { text: 'اكتب المبلغ\nمثال: .زهر 100' })
+            const db = loadDB(); const user = getUser(db, senderId)
+            if (user.wallet < amount) return await sock.sendMessage(from, { text: `❌ ما عندكش كافي!\nرصيدك: ${user.wallet} 🪙` })
+            const p = Math.floor(Math.random() * 6) + 1; const b = Math.floor(Math.random() * 6) + 1
+            const dice = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣']
+            let result, xp
+            if (p > b) { user.wallet += amount; result = `🎉 *ربحت!* +${amount} 🪙`; xp = 15 }
+            else if (p < b) { user.wallet -= amount; result = `😢 *خسرت!* -${amount} 🪙`; xp = 5 }
+            else { result = `🤝 *تعادل!*`; xp = 8 }
+            addXP(user, xp); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `🎲 *لعبة الزهر!*\n\n${dice[p]} أنت: ${p}\n${dice[b]} البوت: ${b}\n\n${result}\n✨ خبرة: +${xp} XP\n👛 رصيدك: ${user.wallet.toLocaleString()} 🪙`
+            })
+        }
+
+        else if (text.startsWith('.تخمين')) {
+            const parts = text.replace('.تخمين', '').trim().split(' ')
+            const amount = parseInt(parts[0]); const guess = parseInt(parts[1])
+            if (isNaN(amount) || amount <= 0 || isNaN(guess) || guess < 1 || guess > 10) {
+                return await sock.sendMessage(from, { text: 'اكتب المبلغ والتخمين (1-10)\nمثال: .تخمين 100 7' })
+            }
+            const db = loadDB(); const user = getUser(db, senderId)
+            if (user.wallet < amount) return await sock.sendMessage(from, { text: `❌ ما عندكش كافي!\nرصيدك: ${user.wallet} 🪙` })
+            const secret = Math.floor(Math.random() * 10) + 1
+            if (guess === secret) {
+                const win = amount * 3; user.wallet += win; addXP(user, 25); saveDB(db)
+                await sock.sendMessage(from, { text: `🎯 *أصبت! الرقم كان ${secret}!*\n\n🎉 ربحت: +${win} 🪙 (×3)\n✨ خبرة: +25 XP\n👛 رصيدك: ${user.wallet.toLocaleString()} 🪙` })
+            } else {
+                user.wallet -= amount; addXP(user, 5); saveDB(db)
+                await sock.sendMessage(from, { text: `❌ *غلطت! الرقم كان ${secret}*\n\n😢 خسرت: -${amount} 🪙\n✨ خبرة: +5 XP\n👛 رصيدك: ${user.wallet.toLocaleString()} 🪙` })
             }
         }
-        else if (text.startsWith('.صور')) {
-            const parts = text.replace('.صور', '').trim().split(' '); let count = 3; let query = parts.join(' ')
-            const lastWord = parts[parts.length - 1]; if (!isNaN(lastWord) && lastWord!== '') { count = Math.min(Math.max(parseInt(lastWord), 1), 10); query = parts.slice(0, -1).join(' ') }
-            if (!query) return await sock.sendMessage(from, { text: 'اكتب.صور وموضوع البحث\nمثال:.صور كريستيانو' })
-            try {
-                await sock.sendMessage(from, { text: `⏳ جاري البحث عن ${count} صورة ${query}...` })
-                const res = await axios.get('https://api.pexels.com/v1/search', { headers: { Authorization: process.env.PEXELS_API_KEY }, params: { query, per_page: count, orientation: 'portrait' } })
-                const photos = res.data.photos; if (!photos.length) return await sock.sendMessage(from, { text: `❌ مش لاقي صور عن ${query}` })
-                for (const photo of photos) { const response = await axios.get(photo.src.large, { responseType: 'arraybuffer' }); const buffer = Buffer.from(response.data); await sock.sendMessage(from, { image: buffer, caption: `📸 ${query}` }) }
-            } catch (err) { console.error('Pexels Photo Error:', err); await sock.sendMessage(from, { text: '❌ فشل جلب الصور' }) }
+
+        else if (text.startsWith('.حجر')) {
+            const parts = text.replace('.حجر', '').trim().split(' ')
+            const amount = parseInt(parts[0]); const choice = parts[1]
+            const valid = ['حجر', 'ورقة', 'مقص']
+            if (isNaN(amount) || amount <= 0 || !valid.includes(choice)) {
+                return await sock.sendMessage(from, { text: 'اكتب المبلغ والاختيار\nمثال: .حجر 100 ورقة' })
+            }
+            const db = loadDB(); const user = getUser(db, senderId)
+            if (user.wallet < amount) return await sock.sendMessage(from, { text: `❌ ما عندكش كافي!\nرصيدك: ${user.wallet} 🪙` })
+            const botChoice = valid[Math.floor(Math.random() * 3)]
+            const emoji = { 'حجر': '🪨', 'ورقة': '📄', 'مقص': '✂️' }
+            let result, xp
+            if (choice === botChoice) { result = `🤝 تعادل!`; xp = 8 }
+            else if ((choice === 'حجر' && botChoice === 'مقص') || (choice === 'ورقة' && botChoice === 'حجر') || (choice === 'مقص' && botChoice === 'ورقة')) {
+                user.wallet += amount; result = `🎉 *ربحت!* +${amount} 🪙`; xp = 15
+            } else { user.wallet -= amount; result = `😢 *خسرت!* -${amount} 🪙`; xp = 5 }
+            addXP(user, xp); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `${emoji[choice]} *حجر ورقة مقص!*\n\nأنت: ${emoji[choice]} ${choice}\nالبوت: ${emoji[botChoice]} ${botChoice}\n\n${result}\n✨ خبرة: +${xp} XP\n👛 رصيدك: ${user.wallet.toLocaleString()} 🪙`
+            })
         }
+
+        else if (text === '.صيد') {
+            const db = loadDB(); const user = getUser(db, senderId)
+            const now = Date.now(); const remaining = (30 * 60 * 1000) - (now - user.lastFish)
+            if (remaining > 0) {
+                const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000)
+                return await sock.sendMessage(from, { text: `🎣 استنى شوية!\nتقدر تصطاد بعد: ${min}د ${sec}ث` })
+            }
+            const fish = [
+                { name: 'سمكة صغيرة 🐟', reward: 50, xp: 10, chance: 40 },
+                { name: 'سمكة متوسطة 🐠', reward: 150, xp: 20, chance: 30 },
+                { name: 'سمكة كبيرة 🐡', reward: 300, xp: 35, chance: 20 },
+                { name: 'سمكة نادرة 🦈', reward: 700, xp: 60, chance: 8 },
+                { name: 'كنز في البحر 💎', reward: 1500, xp: 100, chance: 2 }
+            ]
+            const rand = Math.random() * 100; let cum = 0; let caught = fish[0]
+            for (const f of fish) { cum += f.chance; if (rand < cum) { caught = f; break } }
+            user.wallet += caught.reward; user.lastFish = now; addXP(user, caught.xp); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `🎣 *نتيجة الصيد!*\n\nاصطدت: ${caught.name}\n💰 ربحت: +${caught.reward} 🪙\n✨ خبرة: +${caught.xp} XP\n👛 رصيدك: ${user.wallet.toLocaleString()} 🪙`
+            })
+        }
+
+        else if (text === '.مغامرة') {
+            const db = loadDB(); const user = getUser(db, senderId)
+            const now = Date.now(); const remaining = (60 * 60 * 1000) - (now - user.lastAdventure)
+            if (remaining > 0) {
+                const min = Math.floor(remaining / 60000)
+                return await sock.sendMessage(from, { text: `⚔️ أنت تعبان!\nاسترح: ${min} دقيقة` })
+            }
+            const adventures = [
+                { story: '🏰 دخلت قصر مسكون ووجدت كنز!', reward: 500, xp: 50, win: true },
+                { story: '🐉 قاتلت تنين وانتصرت!', reward: 800, xp: 70, win: true },
+                { story: '🗺️ وجدت خريطة كنز قديمة!', reward: 400, xp: 40, win: true },
+                { story: '🌊 أنقذت تاجر وكافأك!', reward: 300, xp: 35, win: true },
+                { story: '💀 وقعت في فخ اللصوص!', reward: -200, xp: 15, win: false },
+                { story: '🐺 هاجمك ذئب وخسرت معداتك!', reward: -150, xp: 10, win: false },
+                { story: '🌪️ عاصفة رملية دمرت رحلتك!', reward: -100, xp: 8, win: false },
+                { story: '🎭 تاجرت في السوق وربحت!', reward: 150, xp: 20, win: true }
+            ]
+            const adv = adventures[Math.floor(Math.random() * adventures.length)]
+            const actualReward = adv.reward < 0 ? Math.max(adv.reward, -user.wallet) : adv.reward
+            user.wallet += actualReward; user.lastAdventure = now; addXP(user, adv.xp); saveDB(db)
+            await sock.sendMessage(from, {
+                text: `⚔️ *مغامرتك يا ${name}!*\n\n${adv.story}\n\n${adv.win ? '🎉 ربحت' : '💸 خسرت'}: ${actualReward > 0 ? '+' : ''}${actualReward} 🪙\n✨ خبرة: +${adv.xp} XP\n👛 رصيدك: ${user.wallet.toLocaleString()} 🪙`
+            })
+        }
+
+        else if (text === '.لغز') {
+            const db = loadDB(); const user = getUser(db, senderId)
+            const now = Date.now(); const remaining = (2 * 60 * 60 * 1000) - (now - user.lastPuzzle)
+            if (remaining > 0) {
+                const min = Math.floor(remaining / 60000)
+                return await sock.sendMessage(from, { text: `🧩 حليت لغز قريباً!\nانتظر: ${min} دقيقة` })
+            }
+            const puzzle = PUZZLES[Math.floor(Math.random() * PUZZLES.length)]
+            db.puzzles[senderId] = { answer: puzzle.a, hint: puzzle.hint, expiresAt: now + (5 * 60 * 1000), hintUsed: false }
+            saveDB(db)
+            await sock.sendMessage(from, {
+                text: `🧩 *اللغز!*\n\n${puzzle.q}\n\n⏰ عندك 5 دقايق تجاوب\n💰 المكافأة: 300 🪙 + 30 XP\n💡 اكتب .جواب [إجابتك]\n🔍 اكتب .تلميح (بيخصم 50 🪙)`
+            })
+        }
+
+        else if (text === '.تلميح') {
+            const db = loadDB(); const puzzleData = db.puzzles[senderId]
+            if (!puzzleData || Date.now() > puzzleData.expiresAt) return await sock.sendMessage(from, { text: '❌ ما فيه لغز نشط! اكتب .لغز أولاً' })
+            const user = getUser(db, senderId)
+            if (puzzleData.hintUsed) return await sock.sendMessage(from, { text: `💡 التلميح: ${puzzleData.hint}` })
+            if (user.wallet < 50) return await sock.sendMessage(from, { text: '❌ ما عندكش 50 🪙 للتلميح!' })
+            user.wallet -= 50; puzzleData.hintUsed = true; saveDB(db)
+            await sock.sendMessage(from, { text: `💡 التلميح (-50 🪙): ${puzzleData.hint}` })
+        }
+
+        else if (text.startsWith('.جواب')) {
+            const answer = text.replace('.جواب', '').trim()
+            if (!answer) return await sock.sendMessage(from, { text: 'اكتب إجابتك\nمثال: .جواب مشط' })
+            const db = loadDB(); const puzzleData = db.puzzles[senderId]
+            if (!puzzleData) return await sock.sendMessage(from, { text: '❌ ما فيه لغز نشط! اكتب .لغز أولاً' })
+            if (Date.now() > puzzleData.expiresAt) {
+                delete db.puzzles[senderId]; saveDB(db)
+                return await sock.sendMessage(from, { text: `❌ انتهى وقت اللغز!\nالإجابة كانت: ${puzzleData.answer}` })
+            }
+            const user = getUser(db, senderId)
+            if (answer.trim() === puzzleData.answer) {
+                const reward = puzzleData.hintUsed ? 250 : 300
+                user.wallet += reward; user.lastPuzzle = Date.now(); addXP(user, 30)
+                delete db.puzzles[senderId]; saveDB(db)
+                await sock.sendMessage(from, { text: `✅ *إجابة صحيحة!*\n\n💰 ربحت: +${reward} 🪙\n✨ خبرة: +30 XP\n👛 رصيدك: ${user.wallet.toLocaleString()} 🪙` })
+            } else {
+                await sock.sendMessage(from, { text: '❌ إجابة غلط! حاول تاني' })
+            }
+        }
+
+        else if (text === '.اغنى') {
+            const db = loadDB()
+            const sorted = Object.entries(db.users)
+                .map(([id, d]) => ({ id, total: (d.wallet || 0) + (d.bank || 0) }))
+                .sort((a, b) => b.total - a.total).slice(0, 10)
+            if (sorted.length === 0) return await sock.sendMessage(from, { text: '📊 ما فيه بيانات بعد!' })
+            const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
+            let lb = '💰 *ترتيب أغنى الأعضاء:*\n\n'
+            sorted.forEach((u, i) => { lb += `${medals[i]} ${u.id.split('@')[0]}: ${u.total.toLocaleString()} 🪙\n` })
+            await sock.sendMessage(from, { text: lb })
+        }
+
+        else if (text === '.مستويات') {
+            const db = loadDB()
+            const sorted = Object.entries(db.users)
+                .map(([id, d]) => ({ id, level: d.level || 1, xp: d.xp || 0 }))
+                .sort((a, b) => b.xp - a.xp).slice(0, 10)
+            if (sorted.length === 0) return await sock.sendMessage(from, { text: '📊 ما فيه بيانات بعد!' })
+            const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
+            let lb = '⭐ *ترتيب أعلى مستوى:*\n\n'
+            sorted.forEach((u, i) => { lb += `${medals[i]} ${u.id.split('@')[0]}: المستوى ${u.level} (${u.xp} XP)\n` })
+            await sock.sendMessage(from, { text: lb })
+        }
+
+        // ================================================================
+        // ==================== إحصائيات الجروب ==========================
+        // ================================================================
+
+        // .احصائيات - إحصائيات شاملة للجروب
+        else if (text === '.احصائيات') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            try {
+                const db = loadDB()
+                const groupData = getGroup(db, from)
+                const groupMeta = await sock.groupMetadata(from)
+
+                const totalMembers = groupMeta.participants.length
+                const adminCount = groupMeta.participants.filter(p => p.admin).length
+                const mutedCount = groupData.muted ? groupData.muted.length : 0
+                const bannedCount = groupData.banned ? groupData.banned.length : 0
+                const warnedUsers = groupData.warnings ? Object.keys(groupData.warnings).filter(id => groupData.warnings[id] > 0).length : 0
+                const eliteCount = groupData.elite ? groupData.elite.length : 0
+                const currentMode = groupData.mode || 'اعضاء'
+
+                const today = new Date().toISOString().slice(0, 10)
+                const groupMsgData = db.msgCount[from] || {}
+                let todayMsgTotal = 0
+                let mostActiveId = null
+                let mostActiveCount = 0
+                for (const [uid, days] of Object.entries(groupMsgData)) {
+                    const cnt = days[today] || 0
+                    todayMsgTotal += cnt
+                    if (cnt > mostActiveCount) { mostActiveCount = cnt; mostActiveId = uid }
+                }
+
+                const modeEmoji = { 'اعضاء': '🌐', 'مشرفين': '🛡️', 'نخبة': '⭐' }
+
+                let stats =
+                    `╔══════════════════════╗\n` +
+                    `║  📊 *إحصائيات الجروب*  ║\n` +
+                    `╚══════════════════════╝\n\n` +
+                    `👥 *الأعضاء*\n` +
+                    `├ إجمالي الأعضاء: ${totalMembers}\n` +
+                    `├ المشرفون: ${adminCount}\n` +
+                    `└ النخبة: ${eliteCount}\n\n` +
+                    `🛡️ *الإشراف*\n` +
+                    `├ المكتومون: ${mutedCount}\n` +
+                    `├ المحظورون: ${bannedCount}\n` +
+                    `└ المنذرون: ${warnedUsers}\n\n` +
+                    `⚙️ *الإعدادات*\n` +
+                    `└ وضع البوت: ${modeEmoji[currentMode] || '🌐'} ${currentMode}\n\n` +
+                    `💬 *النشاط اليومي*\n` +
+                    `├ رسائل اليوم: ${todayMsgTotal}\n`
+
+                if (mostActiveId) {
+                    stats += `└ الأكثر نشاطاً: @${mostActiveId.split('@')[0]} (${mostActiveCount} رسالة)`
+                } else {
+                    stats += `└ لا يوجد نشاط اليوم بعد`
+                }
+
+                const mentions = mostActiveId ? [mostActiveId] : []
+                await sock.sendMessage(from, { text: stats, mentions })
+            } catch (e) {
+                console.error('Stats Error:', e)
+                await sock.sendMessage(from, { text: '❌ حصل خطأ في جلب الإحصائيات' })
+            }
+        }
+
+        // ================================================================
+        // ====================== نظام التحدي ============================
+        // ================================================================
+
+        // .تحدي @شخص [مبلغ] — إرسال تحدي
+        else if (text.startsWith('.تحدي')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ التحدي للجروبات بس' })
+            try {
+                const db = loadDB()
+                const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+                if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: '❌ لازم تذكر شخص!\nمثال: .تحدي @شخص 200' })
+                const challenged = mentioned[0]
+                if (challenged === senderId) return await sock.sendMessage(from, { text: '❌ ما تقدر تتحدى نفسك!' })
+                if (challenged === sock.user?.id) return await sock.sendMessage(from, { text: '❌ ما تقدر تتحدى البوت!' })
+
+                const parts = text.trim().split(' ')
+                const amountStr = parts[parts.length - 1]
+                const amount = parseInt(amountStr)
+                if (isNaN(amount) || amount < 50) return await sock.sendMessage(from, { text: '❌ أقل مبلغ للتحدي هو 50 🪙\nمثال: .تحدي @شخص 200' })
+
+                const challengerUser = getUser(db, senderId)
+                if (challengerUser.wallet < amount) return await sock.sendMessage(from, { text: `❌ ما عندك فلوس كافية!\nمحفظتك: ${challengerUser.wallet} 🪙` })
+
+                if (db.challenges[from]) return await sock.sendMessage(from, { text: '⏳ في تحدي ناشط بالجروب، انتظر ينتهي' })
+                if (db.duels[from]) return await sock.sendMessage(from, { text: '⏳ في مبارزة ناشطة بالجروب، انتظر تنتهي' })
+
+                db.challenges[from] = {
+                    challenger: senderId,
+                    challenged: challenged,
+                    amount: amount,
+                    expiresAt: Date.now() + 60000
+                }
+                saveDB(db)
+
+                await sock.sendMessage(from, {
+                    text:
+                        `⚔️ *تحدي جديد!*\n\n` +
+                        `🔴 المتحدي: @${senderId.split('@')[0]}\n` +
+                        `🔵 المتحدَى: @${challenged.split('@')[0]}\n` +
+                        `💰 الرهان: ${amount} 🪙\n\n` +
+                        `@${challenged.split('@')[0]} هل تقبل التحدي؟\n` +
+                        `✅ اكتب *.قبول* للموافقة\n` +
+                        `❌ اكتب *.رفض* للرفض\n\n` +
+                        `⏰ ينتهي العرض بعد 60 ثانية`,
+                    mentions: [senderId, challenged]
+                })
+
+                setTimeout(async () => {
+                    try {
+                        const db2 = loadDB()
+                        if (db2.challenges[from] && db2.challenges[from].challenger === senderId) {
+                            delete db2.challenges[from]
+                            saveDB(db2)
+                            await sock.sendMessage(from, {
+                                text: `⏰ انتهى وقت قبول التحدي!\n@${challenged.split('@')[0]} لم يرد — التحدي ملغى`,
+                                mentions: [challenged]
+                            })
+                        }
+                    } catch (e) { }
+                }, 60000)
+            } catch (e) {
+                console.error('Challenge Error:', e)
+                await sock.sendMessage(from, { text: '❌ حصل خطأ' })
+            }
+        }
+
+        // .قبول — قبول التحدي
+        else if (text === '.قبول') {
+            if (!isGroup) return
+            try {
+                const db = loadDB()
+                const challenge = db.challenges[from]
+                if (!challenge) return await sock.sendMessage(from, { text: '❌ ما في تحدي ناشط' })
+                if (senderId !== challenge.challenged) return await sock.sendMessage(from, { text: `❌ التحدي موجه لـ @${challenge.challenged.split('@')[0]} بس`, mentions: [challenge.challenged] })
+                if (Date.now() > challenge.expiresAt) {
+                    delete db.challenges[from]
+                    saveDB(db)
+                    return await sock.sendMessage(from, { text: '⏰ انتهى وقت التحدي' })
+                }
+
+                const challengerUser = getUser(db, challenge.challenger)
+                if (challengerUser.wallet < challenge.amount) {
+                    delete db.challenges[from]
+                    saveDB(db)
+                    return await sock.sendMessage(from, { text: `❌ المتحدي @${challenge.challenger.split('@')[0]} ما عنده فلوس كافية! التحدي ملغى`, mentions: [challenge.challenger] })
+                }
+
+                const q = TRIVIA_QUESTIONS[Math.floor(Math.random() * TRIVIA_QUESTIONS.length)]
+                delete db.challenges[from]
+                db.duels[from] = {
+                    challenger: challenge.challenger,
+                    challenged: challenge.challenged,
+                    amount: challenge.amount,
+                    question: q.q,
+                    answer: q.a,
+                    expiresAt: Date.now() + 90000
+                }
+                saveDB(db)
+
+                await sock.sendMessage(from, {
+                    text:
+                        `🎮 *بدأت المبارزة!*\n\n` +
+                        `⚔️ @${challenge.challenger.split('@')[0]} VS @${challenge.challenged.split('@')[0]}\n` +
+                        `💰 الرهان: ${challenge.amount} 🪙\n\n` +
+                        `━━━━━━━━━━━━━━━━━\n` +
+                        `❓ *السؤال:*\n${q.q}\n` +
+                        `━━━━━━━━━━━━━━━━━\n\n` +
+                        `⏰ عندكم 90 ثانية للإجابة!\n` +
+                        `🏆 أول واحد يجاوب صح يكسب!`,
+                    mentions: [challenge.challenger, challenge.challenged]
+                })
+
+                setTimeout(async () => {
+                    try {
+                        const db2 = loadDB()
+                        if (db2.duels[from] && db2.duels[from].answer === q.a) {
+                            delete db2.duels[from]
+                            saveDB(db2)
+                            await sock.sendMessage(from, {
+                                text:
+                                    `⏰ *انتهى وقت المبارزة!*\n\n` +
+                                    `✅ الإجابة الصحيحة كانت: *${q.a}*\n\n` +
+                                    `💔 لا رابح ولا خاسر — الفلوس رجعت لأصحابها`,
+                                mentions: [challenge.challenger, challenge.challenged]
+                            })
+                        }
+                    } catch (e) { }
+                }, 90000)
+            } catch (e) {
+                console.error('Accept Error:', e)
+                await sock.sendMessage(from, { text: '❌ حصل خطأ' })
+            }
+        }
+
+        // .رفض — رفض التحدي
+        else if (text === '.رفض') {
+            if (!isGroup) return
+            try {
+                const db = loadDB()
+                const challenge = db.challenges[from]
+                if (!challenge) return await sock.sendMessage(from, { text: '❌ ما في تحدي ناشط' })
+                if (senderId !== challenge.challenged) return await sock.sendMessage(from, { text: `❌ التحدي موجه لـ @${challenge.challenged.split('@')[0]} بس`, mentions: [challenge.challenged] })
+                delete db.challenges[from]
+                saveDB(db)
+                await sock.sendMessage(from, {
+                    text: `❌ @${senderId.split('@')[0]} رفض التحدي!\n😏 @${challenge.challenger.split('@')[0]} ما لقى من يتحداه 😄`,
+                    mentions: [senderId, challenge.challenger]
+                })
+            } catch (e) {
+                await sock.sendMessage(from, { text: '❌ حصل خطأ' })
+            }
+        }
+
+        // .نشاط - أكثر 10 أعضاء إرسالاً اليوم
+        else if (text === '.نشاط') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            try {
+                const db = loadDB()
+                const today = new Date().toISOString().slice(0, 10)
+                const groupMsgData = db.msgCount[from] || {}
+                const sorted = Object.entries(groupMsgData)
+                    .map(([id, days]) => ({ id, count: days[today] || 0 }))
+                    .filter(u => u.count > 0)
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 10)
+
+                if (sorted.length === 0) {
+                    return await sock.sendMessage(from, { text: '📊 ما في نشاط اليوم بعد! ابدأ بالكلام 😄' })
+                }
+
+                const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
+                const maxCount = sorted[0].count
+                const mentions = sorted.map(u => u.id)
+
+                let msg =
+                    `╔══════════════════════╗\n` +
+                    `║  🔥 *نشاط اليوم*  ║\n` +
+                    `╚══════════════════════╝\n` +
+                    `📅 ${today}\n\n`
+
+                sorted.forEach((u, i) => {
+                    const bar = Math.round((u.count / maxCount) * 8)
+                    const filled = '█'.repeat(bar) + '░'.repeat(8 - bar)
+                    msg += `${medals[i]} @${u.id.split('@')[0]}\n`
+                    msg += `   ${filled} ${u.count} رسالة\n\n`
+                })
+
+                msg += `👥 *إجمالي النشاط:* ${sorted.reduce((s, u) => s + u.count, 0)} رسالة اليوم`
+
+                await sock.sendMessage(from, { text: msg, mentions })
+            } catch (e) {
+                console.error('Activity Error:', e)
+                await sock.sendMessage(from, { text: '❌ حصل خطأ' })
+            }
+        }
+
+        // ================================================================
+        // ======================== المتجر =================================
+        // ================================================================
+
+        // .متجر — عرض المتجر
+        else if (text === '.متجر') {
+            const shop =
+                `╔══════════════════════╗\n` +
+                `║    🛒 *متجر البوت*    ║\n` +
+                `╚══════════════════════╝\n\n` +
+                `اشتري لقب يظهر جنب اسمك في كل الأوامر!\n\n` +
+                `1️⃣  👑 *ملك الجروب* — 2000 🪙\n` +
+                `2️⃣  ⭐ *نجم الأسبوع* — 1000 🪙\n` +
+                `3️⃣  🔥 *ناري* — 800 🪙\n` +
+                `4️⃣  💎 *ماسي* — 1500 🪙\n` +
+                `5️⃣  🦁 *الأسد* — 1200 🪙\n` +
+                `6️⃣  🎯 *قناص* — 900 🪙\n` +
+                `7️⃣  🧠 *عبقري* — 700 🪙\n` +
+                `8️⃣  🌙 *ابن الليل* — 600 🪙\n` +
+                `9️⃣  🚀 *صاروخ* — 500 🪙\n` +
+                `🔟  🐉 *التنين* — 1800 🪙\n\n` +
+                `📌 للشراء: *.اشتري [رقم]*\n` +
+                `مثال: .اشتري 1\n\n` +
+                `👤 لعرض لقبك: *.لقبي*\n` +
+                `🗑️ لإزالة اللقب: *.ازالة لقب*`
+            await sock.sendMessage(from, { text: shop })
+        }
+
+        // .اشتري [رقم] — شراء لقب
+        else if (text.startsWith('.اشتري')) {
+            const SHOP_ITEMS = [
+                { id: 1, title: '👑 ملك الجروب', price: 2000 },
+                { id: 2, title: '⭐ نجم الأسبوع', price: 1000 },
+                { id: 3, title: '🔥 ناري', price: 800 },
+                { id: 4, title: '💎 ماسي', price: 1500 },
+                { id: 5, title: '🦁 الأسد', price: 1200 },
+                { id: 6, title: '🎯 قناص', price: 900 },
+                { id: 7, title: '🧠 عبقري', price: 700 },
+                { id: 8, title: '🌙 ابن الليل', price: 600 },
+                { id: 9, title: '🚀 صاروخ', price: 500 },
+                { id: 10, title: '🐉 التنين', price: 1800 },
+            ]
+            const num = parseInt(text.split(' ')[1])
+            const item = SHOP_ITEMS.find(i => i.id === num)
+            if (!item) return await sock.sendMessage(from, { text: '❌ رقم غلط! اكتب .متجر لتشوف الأرقام الصح' })
+            const db = loadDB()
+            const user = getUser(db, senderId)
+            if (user.wallet < item.price) return await sock.sendMessage(from, { text: `❌ ما عندك فلوس كافية!\nالسعر: ${item.price} 🪙\nمحفظتك: ${user.wallet} 🪙` })
+            user.wallet -= item.price
+            user.title = item.title
+            saveDB(db)
+            await sock.sendMessage(from, {
+                text:
+                    `🎉 *تم الشراء بنجاح!*\n\n` +
+                    `👤 @${senderId.split('@')[0]}\n` +
+                    `🏷️ لقبك الجديد: ${item.title}\n` +
+                    `💸 دُفع: ${item.price} 🪙\n` +
+                    `💰 المتبقي: ${user.wallet} 🪙\n\n` +
+                    `اللقب هيظهر جنب اسمك في كل الأوامر!`,
+                mentions: [senderId]
+            })
+        }
+
+        // .لقبي — عرض اللقب الحالي
+        else if (text === '.لقبي') {
+            const db = loadDB()
+            const user = getUser(db, senderId)
+            const title = user.title || null
+            if (!title) return await sock.sendMessage(from, { text: `👤 @${senderId.split('@')[0]}\n\n😕 ما عندكش لقب بعد!\nاكتب *.متجر* لتشتري لقب`, mentions: [senderId] })
+            await sock.sendMessage(from, {
+                text: `👤 @${senderId.split('@')[0]}\n\n🏷️ لقبك الحالي: *${title}*\n\nاكتب *.متجر* لتشتري لقب تاني أو *.ازالة لقب* لإزالته`,
+                mentions: [senderId]
+            })
+        }
+
+        // .ازالة لقب — إزالة اللقب
+        else if (text === '.ازالة لقب') {
+            const db = loadDB()
+            const user = getUser(db, senderId)
+            if (!user.title) return await sock.sendMessage(from, { text: '❌ ما عندكش لقب أصلاً!' })
+            const oldTitle = user.title
+            delete user.title
+            saveDB(db)
+            await sock.sendMessage(from, { text: `✅ تم إزالة لقبك: ${oldTitle}` })
+        }
+
+        // .رسائلي أو .رسائلي @شخص - رسائل اليوم
+        else if (text.startsWith('.رسائلي')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            try {
+                const db = loadDB()
+                const today = new Date().toISOString().slice(0, 10)
+                const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+                const targetId = (mentioned && mentioned.length > 0) ? mentioned[0] : senderId
+                const targetClean = targetId.split('@')[0]
+                const count = db.msgCount?.[from]?.[targetId]?.[today] || 0
+
+                // حساب الترتيب في الجروب
+                const groupMsgData = db.msgCount[from] || {}
+                const sorted = Object.entries(groupMsgData)
+                    .map(([id, days]) => ({ id, count: days[today] || 0 }))
+                    .filter(u => u.count > 0)
+                    .sort((a, b) => b.count - a.count)
+                const rank = sorted.findIndex(u => u.id === targetId) + 1
+                const totalActive = sorted.length
+
+                // شريط النشاط
+                const maxCount = sorted[0]?.count || 1
+                const barFilled = Math.min(10, Math.floor((count / maxCount) * 10))
+                const bar = '🟩'.repeat(barFilled) + '⬜'.repeat(10 - barFilled)
+
+                // تحديد مستوى النشاط
+                let activityLevel
+                if (count === 0) activityLevel = '😴 غير نشط'
+                else if (count < 10) activityLevel = '🐢 نشاط خفيف'
+                else if (count < 30) activityLevel = '🚶 نشاط متوسط'
+                else if (count < 60) activityLevel = '🏃 نشيط'
+                else activityLevel = '🔥 نشيط جداً'
+
+                const isOwn = targetId === senderId
+                await sock.sendMessage(from, {
+                    text:
+                        `💬 *رسائل ${isOwn ? 'اليوم' : '@' + targetClean}*\n\n` +
+                        `👤 العضو: @${targetClean}\n` +
+                        `📅 التاريخ: ${today}\n\n` +
+                        `📊 عدد الرسائل: *${count}* رسالة\n` +
+                        `${bar}\n\n` +
+                        `${activityLevel}\n` +
+                        `🏆 الترتيب: ${rank > 0 ? `#${rank} من ${totalActive}` : 'لا يوجد نشاط'}`,
+                    mentions: [targetId]
+                })
+            } catch (e) {
+                console.error('Msg Count Error:', e)
+                await sock.sendMessage(from, { text: '❌ حصل خطأ' })
+            }
+        }
+
     })
 }
 

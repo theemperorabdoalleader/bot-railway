@@ -16,15 +16,6 @@ const express = require('express');
 const SESSION_FOLDER = './session'
 const DB_FILE = './database.json'
 
-const app = express();
-let latestQR = null;
-app.get('/', async (req, res) => {
-    if (!latestQR) return res.send('<h1>مستني QR... شغل البوت</h1>');
-    const img = await QRCode.toDataURL(latestQR);
-    res.send(`<html><head><meta http-equiv="refresh" content="20"><meta name="viewport" content="width=device-width"><style>body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh}img{width:95%;max-width:450px}</style></head><body><img src="${img}"/></body></html>`);
-});
-app.listen(3000, '0.0.0.0', () => console.log('السيرفر شغال'))
-
 const DEVELOPER_NUMBER = '201149182286'
 const DEVELOPER_JID = `${DEVELOPER_NUMBER}@s.whatsapp.net`
 
@@ -296,24 +287,19 @@ async function startBot() {
     })
 
     sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update
-        if (qr) {
-            latestQR = qr;
-            console.log('🔄 QR جديد جاهز — افتح اللينك في المتصفح')
-        }
-        if (connection === 'close') {
-            latestQR = null
-            const statusCode = lastDisconnect?.error?.output?.statusCode
-            if (statusCode === DisconnectReason.loggedOut) {
-                console.log('❌ تم تسجيل الخروج.')
-                process.exit(1)
+    const { connection, lastDisconnect, qr } = update
+    if (qr) {
+        console.log('🔄 QR جديد جاهز...')
+        // هنحول QR لرابط صورة
+        const qrImage = await QRCode.toDataURL(qr);
+        // نرفعه على https://0x0.st او imgbb
+        const res = await axios.post('https://0x0.st', qrImage, {
+            headers: { 'Content-Type': 'text/plain' }
+        });
+        console.log('\n========== امسح الكيو ار ده ==========')
+        console.log(res.data) // <-- ده رابط الصورة المباشر
+        console.log('======================================\n')
             }
-            setTimeout(() => startBot(), 5000)
-        } else if (connection === 'open') {
-            latestQR = null
-            console.log('✅ البوت اشتغل بنجاح واتصل بالواتساب 🔥')
-        }
-    })
 
     sock.ev.on('group-participants.update', async (update) => {
         const { id, participants, action } = update

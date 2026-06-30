@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ['python3', 'ffmpeg']
+nixPkgs = ["ffmpeg", "libvips"]
 
-[start]
-cmd = "npm start"
+[phases.install]
+cmds = ["npm install"]

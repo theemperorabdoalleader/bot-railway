@@ -1775,8 +1775,6 @@ else if (text.startsWith('.اغنية')) {
             if (!user.title) return await sock.sendMessage(from, { text: '❌ ما عندكش لقب!' })
             const oldTitle = user.title; delete user.title; saveDB(db)
             await sock.sendMessage(from, { text: `✅ تم إزالة لقبك: ${oldTitle}` })
-        }
-    }
-}
-
-startBot()
+      }
+      }  // <-- ده قفل m => 
+      startBot()

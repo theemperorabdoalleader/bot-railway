@@ -253,6 +253,8 @@ function isDeveloper(senderId) {
     return senderId.split('@')[0] === DEVELOPER_NUMBER || senderId === DEVELOPER_JID
 }
 
+const chatCooldown = new Map()
+
 async function startBot() {
     console.log('بشغل البوت...')
 
@@ -390,12 +392,9 @@ async function startBot() {
                 if (duel) {
                     const now = Date.now()
                     if (now > duel.expiresAt) {
-                        delete db.duels[from]; saveDB(db) // <- صلحتها db
-                        await sock.sendMessage(from, { text: `⏰ *انتهى وقت المبارزة!*\n✅ الإجابة: *${duel.answer}*\n💔 الفلوس رجعت لأصحابها` }) // <- صلحتها duel.answer
-                    }
-                }
-            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) } // <- ال try صح
-            }
+                        delete db.duels[from]
+                        saveDB(db)
+                        await sock.sendMessage(from, { text: `⏰ *انتهى وقت المبارزة!*\n✅ الإجابة: *${duel.answer}*\n💔 الفلوس رجعت لأصحابها` })
                     } else if (senderId === duel.challenger || senderId === duel.challenged) {
                         const userAnswer = text.trim().toLowerCase()
                         const correctAnswer = duel.answer.trim().toLowerCase()
@@ -442,6 +441,18 @@ async function startBot() {
                 db.msgCount[from][senderId][today]++
                 saveDB(db)
             } catch (e) { }
+        }
+
+        // ====== ردود تلقائية ======
+        if (isGroup && text) {
+            const trimmed = text.trim()
+            if (trimmed === 'السلام عليكم' || trimmed === 'سلام عليكم') {
+                await sock.sendMessage(from, { text: `وعليكم السلام ورحمة الله وبركاته يا ${name} 🌹` })
+            } else if (trimmed === 'منور' || trimmed === 'منورين') {
+                await sock.sendMessage(from, { text: 'بنورك يا غالي ✨' })
+            } else if (trimmed === 'احا') {
+                await sock.sendMessage(from, { text: 'فيه ايه ياد استرجل 😂' })
+            }
         }
 
         if (isGroup && text.startsWith('.')) {
@@ -502,11 +513,23 @@ async function startBot() {
                 `▸ .ترجمة [نص] — ترجمة لانجليزي\n` +
                 `▸ .حاسبة [معادلة] — حاسبة\n` +
                 `▸ .مين ادمن — مشرفي الجروب\n` +
-                `▸ .رابط الجروب — رابط الدعوة\n\n` +
+                `▸ .رابط الجروب — رابط الدعوة\n` +
+                `▸ .طقس [مدينة] — طقس أي مدينة\n` +
+                `▸ .ميمز — ميم عشوائي مضحك 😂\n` +
+                `▸ .فيلم [اسم] — معلومات أي فيلم/مسلسل 🎬\n` +
+                `▸ .اخبار — اخر 5 اخبار عربية 📰\n` +
+                `▸ .كورة — نتائج وماتشات قادمة ⚽\n` +
+                `▸ .ترتيب [دوري] — جدول ترتيب أي دوري 🏆\n` +
+                `▸ .هداف [دوري] — أفضل 10 هدافين في الدوري 🎯\n` +
+                `     ↳ انجليزي، اسباني، ايطالي، الماني، فرنسي، ابطال\n` +
+                `▸ .صوت [نص] — تحويل نص لصوت عربي 🔊\n` +
+                `▸ .ترجمة صوت [نص] — ترجمة وصوت انجليزي 🔊\n\n` +
+
+                `━━━━━━ 🤖 *ذكاء اصطناعي* ━━━━━━\n` +
+                `▸ .شات [سؤال] — اسأل الذكاء الاصطناعي\n\n` +
 
                 `━━━ 🛡️ *إشراف (مشرفين)* ━━━\n` +
                 `▸ .مود مشرفين / نخبة / اعضاء\n` +
-                `▸ .اضافة للنخبة @شخص\n` +
                 `▸ .تحذير @شخص [سبب]\n` +
                 `▸ .انذار @شخص — 3 انذارات = طرد\n` +
                 `▸ .طرد @شخص\n` +
@@ -515,7 +538,13 @@ async function startBot() {
                 `▸ .قائمة الباند\n` +
                 `▸ .كتم @شخص\n` +
                 `▸ .الغاء كتم @شخص\n` +
-                `▸ .قائمة المكتومين\n\n` +
+                `▸ .قائمة المكتومين\n` +
+                `▸ .حذف — رد على رسالة لحذفها\n\n` +
+
+                `━━━ 👑 *مطور فقط* ━━━\n` +
+                `▸ .اضافة للنخبة @شخص\n` +
+                `▸ .حذف نخبة @شخص\n` +
+                `▸ .قائمة النخبة\n\n` +
 
                 `━━━━━ 💰 *اقتصاد* ━━━━━\n` +
                 `▸ .فلوسي — رصيدك\n` +
@@ -610,7 +639,7 @@ async function startBot() {
 else if (text.startsWith('.اغنية')) {
     const query = text.replace('.اغنية', '').trim()
     if (!query) return await sock.sendMessage(from, { text: 'اكتب.اغنية واسم الاغنية\nمثال:.اغنية انت معلم' })
-    
+
     try {
         await sock.sendMessage(from, { text: `🔍 بدور على: ${query}...` })
         const r = await yts(query)
@@ -646,32 +675,7 @@ else if (text.startsWith('.اغنية')) {
         console.error('Song Error:', err)
         await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية، جرب اسم تاني' })
     }
-                                           }
-                    const writeStream = fs.createWriteStream(audioPath)
-                    stream.pipe(writeStream)
-                    stream.on('error', reject)
-                    writeStream.on('finish', resolve)
-                    writeStream.on('error', reject)
-                })
-
-                if (!fs.existsSync(audioPath) || fs.statSync(audioPath).size === 0) {
-                    throw new Error('الملف فارغ')
-                }
-
-                const audioBuffer = fs.readFileSync(audioPath)
-                await sock.sendMessage(from, {
-                    audio: audioBuffer,
-                    mimetype: 'audio/mpeg',
-                    fileName: `${video.title}.mp3`,
-                    ptt: false
-                })
-                fs.unlinkSync(audioPath)
-            } catch (err) {
-                console.error('Song Error:', err)
-                if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath)
-                await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية، جرب اسم تاني' })
-            }
-        }
+}
 
         // ====== أدوات ======
         else if (text.startsWith('.ترجمة')) {
@@ -747,18 +751,373 @@ else if (text.startsWith('.اغنية')) {
 
         else if (text.startsWith('.اضافة للنخبة')) {
             if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المطور بس يا غالي' })
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
             try {
-                const groupMeta = await sock.groupMetadata(from)
-                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
-                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
                 const db = loadDB(); const groupData = getGroup(db, from)
                 const targetId = mentioned[0]
                 if (groupData.elite.includes(targetId)) return await sock.sendMessage(from, { text: `⭐ موجود في النخبة أصلاً`, mentions: [targetId] })
                 groupData.elite.push(targetId); saveDB(db)
                 await sock.sendMessage(from, { text: `⭐ *تم إضافة @${targetId.split('@')[0]} للنخبة!*`, mentions: [targetId] })
             } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        else if (text.startsWith('.حذف نخبة')) {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المطور بس يا غالي' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
+            try {
+                const db = loadDB(); const groupData = getGroup(db, from)
+                const targetId = mentioned[0]
+                if (!groupData.elite.includes(targetId)) return await sock.sendMessage(from, { text: `❌ @${targetId.split('@')[0]} مش في النخبة أصلاً`, mentions: [targetId] })
+                groupData.elite = groupData.elite.filter(id => id !== targetId); saveDB(db)
+                await sock.sendMessage(from, { text: `✅ *تم حذف @${targetId.split('@')[0]} من النخبة*`, mentions: [targetId] })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        else if (text === '.قائمة النخبة') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المطور بس يا غالي' })
+            try {
+                const db = loadDB(); const groupData = getGroup(db, from)
+                if (!groupData.elite || groupData.elite.length === 0) return await sock.sendMessage(from, { text: '❌ مفيش حد في النخبة' })
+                const list = groupData.elite.map((id, i) => `${i + 1}. @${id.split('@')[0]}`).join('\n')
+                await sock.sendMessage(from, { text: `⭐ *قائمة النخبة:*\n\n${list}`, mentions: groupData.elite })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
+
+        else if (text === '.حذف') {
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            try {
+                const groupMeta = await sock.groupMetadata(from)
+                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
+                const stanzaId = msg.message.extendedTextMessage?.contextInfo?.stanzaId
+                if (!stanzaId) return await sock.sendMessage(from, { text: '❌ ارد على الرسالة اللي تريد تحذفها' })
+                await sock.sendMessage(from, { delete: msg.message.extendedTextMessage.contextInfo.stanzaId })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ في الحذف' }) }
+        }
+
+        else if (text.startsWith('.شات ')) {
+            const question = text.replace('.شات ', '').trim()
+            if (!question) return await sock.sendMessage(from, { text: '📌 اكتب سؤالك بعد الامر. مثال: .شات من هو نابليون' })
+            if (!process.env.TOGETHER_API_KEY) return await sock.sendMessage(from, { text: '❌ مفتاح الذكاء الاصطناعي مش مضاف في Secrets' })
+            const now = Date.now(); const lastUsed = chatCooldown.get(senderId) || 0
+            if (now - lastUsed < 10000) return await sock.sendMessage(from, { text: `⏳ استنى ${Math.ceil((10000 - (now - lastUsed)) / 1000)} ثانية قبل ما تسأل تاني` })
+            chatCooldown.set(senderId, now)
+            try {
+                const res = await axios.post(
+                    'https://api.together.ai/v1/chat/completions',
+                    {
+                        model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+                        messages: [
+                            { role: 'system', content: 'أنت مساعد ذكي. أجب دائماً باللغة العربية بشكل مختصر وواضح.' },
+                            { role: 'user', content: question }
+                        ]
+                    },
+                    { headers: { Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`, 'Content-Type': 'application/json' } }
+                )
+                const answer = res.data.choices[0].message.content
+                await sock.sendMessage(from, { text: answer })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ في مشكلة في الذكاء الاصطناعي حاول تاني' }) }
+        }
+
+        else if (text.startsWith('.صوت ')) {
+            const ttsText = text.replace('.صوت ', '').trim()
+            if (!ttsText) return await sock.sendMessage(from, { text: '📌 اكتب النص بعد الامر. مثال: .صوت مرحبا بكم' })
+            if (ttsText.length > 200) return await sock.sendMessage(from, { text: '❌ النص طويل اوي، حد أقصى 200 حرف' })
+            try {
+                const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=${encodeURIComponent(ttsText)}`
+                const response = await axios.get(url, { responseType: 'arraybuffer', headers: { 'User-Agent': 'Mozilla/5.0' } })
+                const audioBuffer = Buffer.from(response.data)
+                await sock.sendMessage(from, { audio: audioBuffer, mimetype: 'audio/mpeg', ptt: true })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ فشل تحويل النص لصوت' }) }
+        }
+
+        else if (text.startsWith('.ترجمة صوت ')) {
+            const inputText = text.replace('.ترجمة صوت ', '').trim()
+            if (!inputText) return await sock.sendMessage(from, { text: '📌 اكتب النص بعد الامر. مثال: .ترجمة صوت مرحبا بالعالم' })
+            if (inputText.length > 200) return await sock.sendMessage(from, { text: '❌ النص طويل اوي، حد أقصى 200 حرف' })
+            try {
+                const transRes = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(inputText)}`)
+                const translated = transRes.data[0][0][0]
+                const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(translated)}`
+                const audioRes = await axios.get(url, { responseType: 'arraybuffer', headers: { 'User-Agent': 'Mozilla/5.0' } })
+                const audioBuffer = Buffer.from(audioRes.data)
+                await sock.sendMessage(from, { audio: audioBuffer, mimetype: 'audio/mpeg', ptt: true, caption: `🇺🇸 ${translated}` })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ فشل التحويل، حاول تاني' }) }
+        }
+
+        else if (text.startsWith('.طقس ')) {
+            const city = text.replace('.طقس ', '').trim()
+            if (!city) return await sock.sendMessage(from, { text: '📌 اكتب اسم المدينة. مثال: .طقس القاهرة' })
+            if (!process.env.OPENWEATHER_API_KEY) return await sock.sendMessage(from, { text: '❌ مفتاح الطقس مش مضاف في Secrets (OPENWEATHER_API_KEY)' })
+            try {
+                const res = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric&lang=ar`)
+                const d = res.data
+                const desc = d.weather[0].description
+                const temp = d.main.temp
+                const feels = d.main.feels_like
+                const humidity = d.main.humidity
+                const wind = d.wind.speed
+                const tempEmoji = temp >= 35 ? '🔥' : temp >= 25 ? '☀️' : temp >= 15 ? '🌤️' : temp >= 5 ? '🌧️' : '❄️'
+                await sock.sendMessage(from, {
+                    text:
+                        `${tempEmoji} *طقس ${d.name}*\n\n` +
+                        `🌡️ الحرارة: ${Math.round(temp)}°C (محسوسة: ${Math.round(feels)}°C)\n` +
+                        `☁️ الحالة: ${desc}\n` +
+                        `💧 الرطوبة: ${humidity}%\n` +
+                        `💨 الرياح: ${wind} م/ث`
+                })
+            } catch (e) {
+                if (e.response?.status === 404) return await sock.sendMessage(from, { text: `❌ مش لاقي مدينة اسمها "${city}"` })
+                await sock.sendMessage(from, { text: '❌ فشل جلب الطقس، حاول تاني' })
+            }
+        }
+
+        else if (text === '.ميمز') {
+            const subreddits = ['ArabsMemes', 'memes', 'arabmemes']
+            const sub = subreddits[Math.floor(Math.random() * subreddits.length)]
+            try {
+                const res = await axios.get(`https://meme-api.com/gimme/${sub}`, { timeout: 8000 })
+                const meme = res.data
+                if (!meme || meme.nsfw || !meme.url) throw new Error('bad meme')
+                const imgRes = await axios.get(meme.url, { responseType: 'arraybuffer', timeout: 10000 })
+                const imgBuffer = Buffer.from(imgRes.data)
+                await sock.sendMessage(from, {
+                    image: imgBuffer,
+                    caption: `😂 *${meme.title || 'ميم عشوائي'}*`
+                })
+            } catch (e) {
+                await sock.sendMessage(from, { text: 'الميمز هربت دلوقتي 😂 جرب كمان شوية' })
+            }
+        }
+
+        else if (text.startsWith('.فيلم ')) {
+            const movieName = text.replace('.فيلم ', '').trim()
+            if (!movieName) return await sock.sendMessage(from, { text: '🎬 اكتب اسم الفيلم. مثال: .فيلم Inception' })
+            if (!process.env.OMDB_API_KEY) return await sock.sendMessage(from, { text: '❌ مفتاح OMDB مش مضاف في Secrets (OMDB_API_KEY)' })
+            try {
+                const res = await axios.get(`https://www.omdbapi.com/?t=${encodeURIComponent(movieName)}&apikey=${process.env.OMDB_API_KEY}&plot=short`, { timeout: 8000 })
+                const d = res.data
+                if (d.Response === 'False') return await sock.sendMessage(from, { text: `❌ مش لاقي فيلم اسمه "${movieName}"` })
+
+                const typeMap = { movie: '🎬 فيلم', series: '📺 مسلسل', episode: '📺 حلقة' }
+                const typeAr = typeMap[d.Type] || d.Type
+                const ratingImdb = d.imdbRating !== 'N/A' ? `⭐ ${d.imdbRating}/10` : '⭐ غير متاح'
+
+                let msg2 =
+                    `🎬 *${d.Title}* (${d.Year})\n\n` +
+                    `📌 النوع: ${typeAr}\n` +
+                    `🎭 التصنيف: ${d.Genre !== 'N/A' ? d.Genre : 'غير متاح'}\n` +
+                    `⏱️ المدة: ${d.Runtime !== 'N/A' ? d.Runtime : 'غير متاح'}\n` +
+                    `${ratingImdb}\n` +
+                    `🌍 اللغة: ${d.Language !== 'N/A' ? d.Language : 'غير متاح'}\n` +
+                    `🎥 المخرج: ${d.Director !== 'N/A' ? d.Director : 'غير متاح'}\n\n` +
+                    `📝 *القصة:*\n${d.Plot !== 'N/A' ? d.Plot : 'لا يوجد وصف'}`
+
+                if (d.Poster && d.Poster !== 'N/A') {
+                    try {
+                        const imgRes = await axios.get(d.Poster, { responseType: 'arraybuffer', timeout: 8000 })
+                        await sock.sendMessage(from, { image: Buffer.from(imgRes.data), caption: msg2 })
+                    } catch {
+                        await sock.sendMessage(from, { text: msg2 })
+                    }
+                } else {
+                    await sock.sendMessage(from, { text: msg2 })
+                }
+            } catch (e) {
+                await sock.sendMessage(from, { text: '❌ فشل جلب معلومات الفيلم، حاول تاني' })
+            }
+        }
+
+        else if (text === '.اخبار') {
+            const feeds = [
+                'https://www.bbc.com/arabic/index.xml',
+                'https://www.aljazeera.net/rss'
+            ]
+            const parseRSS = (xml) => {
+                const items = []
+                const regex = /<item[\s\S]*?<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>[\s\S]*?<link>([\s\S]*?)<\/link>|<item[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>/g
+                let match
+                while ((match = regex.exec(xml)) !== null && items.length < 5) {
+                    const title = (match[1] || match[3] || '').trim()
+                    const link = (match[2] || match[4] || '').trim()
+                    if (title && link) items.push({ title, link })
+                }
+                return items
+            }
+            let items = []
+            for (const url of feeds) {
+                try {
+                    const res = await axios.get(url, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } })
+                    items = parseRSS(res.data)
+                    if (items.length > 0) break
+                } catch { }
+            }
+            if (items.length === 0) {
+                return await sock.sendMessage(from, { text: 'الاخبار فصلت دلوقتي 😂' })
+            }
+            let reply = `📰 *اخر الاخبار*\n\n`
+            items.forEach((item, i) => {
+                reply += `${i + 1}. *${item.title}*\n🔗 ${item.link}\n\n`
+            })
+            await sock.sendMessage(from, { text: reply.trim() })
+        }
+
+        else if (text === '.كورة') {
+            if (!process.env.FOOTBALL_API_KEY) return await sock.sendMessage(from, { text: '❌ مفتاح FOOTBALL_API_KEY مش مضاف في Secrets' })
+            const nowTs = Date.now()
+            if (global._kooraCache && nowTs - global._kooraCache.ts < 3600000) {
+                return await sock.sendMessage(from, { text: global._kooraCache.msg })
+            }
+            try {
+                const toDate = d => d.toISOString().split('T')[0]
+                const yesterday = toDate(new Date(nowTs - 86400000))
+                const today     = toDate(new Date(nowTs))
+                const tomorrow  = toDate(new Date(nowTs + 86400000))
+                const res = await axios.get('https://api.football-data.org/v4/matches', {
+                    headers: { 'X-Auth-Token': process.env.FOOTBALL_API_KEY },
+                    params: { dateFrom: yesterday, dateTo: tomorrow },
+                    timeout: 10000
+                })
+                const allowed = ['PL', 'PD', 'CL', 'EGY']
+                const all = (res.data.matches || []).filter(m => allowed.includes(m.competition?.code))
+                const results  = all.filter(m => m.status === 'FINISHED')
+                const upcoming = all.filter(m => ['SCHEDULED', 'TIMED'].includes(m.status))
+                if (results.length === 0 && upcoming.length === 0) {
+                    return await sock.sendMessage(from, { text: 'مفيش كورة النهاردة 😴 البس البيجاما' })
+                }
+                const shortName = t => t.shortName || t.tla || t.name
+                let reply = ''
+                if (results.length > 0) {
+                    reply += `⚽ *نتائج الامس والنهاردة*\n\n`
+                    results.slice(0, 8).forEach(m => {
+                        const h = m.score.fullTime.home
+                        const a = m.score.fullTime.away
+                        const emoji = h === a ? '🤝' : '✅'
+                        reply += `${shortName(m.homeTeam)} ${h} - ${a} ${shortName(m.awayTeam)} ${emoji}\n`
+                    })
+                    reply += '\n'
+                }
+                if (upcoming.length > 0) {
+                    reply += `📅 *ماتشات النهاردة وبكرة*\n\n`
+                    upcoming.slice(0, 8).forEach(m => {
+                        const d = new Date(m.utcDate)
+                        const matchDay = toDate(d)
+                        const dayLabel = matchDay === today ? 'اليوم' : 'بكرة'
+                        const h = String((d.getUTCHours() + 3) % 24).padStart(2, '0')
+                        const min = String(d.getUTCMinutes()).padStart(2, '0')
+                        reply += `${shortName(m.homeTeam)} vs ${shortName(m.awayTeam)} | ${dayLabel} ${h}:${min}\n`
+                    })
+                }
+                reply = reply.trim()
+                global._kooraCache = { ts: nowTs, msg: reply }
+                await sock.sendMessage(from, { text: reply })
+            } catch (e) {
+                await sock.sendMessage(from, { text: 'مفيش كورة النهاردة 😴 البس البيجاما' })
+            }
+        }
+
+        else if (text.startsWith('.ترتيب')) {
+            if (!process.env.FOOTBALL_API_KEY) return await sock.sendMessage(from, { text: '❌ مفتاح FOOTBALL_API_KEY مش مضاف في Secrets' })
+            const leagueInput = text.replace('.ترتيب', '').trim().toLowerCase()
+            if (!leagueInput) return await sock.sendMessage(from, {
+                text: '📌 اكتب اسم الدوري. مثال: .ترتيب الانجليزي\nالدوريات المتاحة: انجليزي، اسباني، ايطالي، الماني، فرنسي، ابطال'
+            })
+            const leagueMap = {
+                PL: ['انجليزي', 'الانجليزي', 'premier', 'premier league', 'pl', 'england'],
+                PD: ['اسباني', 'الاسباني', 'laliga', 'la liga', 'spanish', 'spain', 'pd'],
+                SA: ['ايطالي', 'الايطالي', 'serie a', 'seriea', 'italian', 'italy', 'sa'],
+                BL1: ['الماني', 'الالماني', 'bundesliga', 'german', 'germany', 'bl1'],
+                FL1: ['فرنسي', 'الفرنسي', 'ligue 1', 'ligue1', 'french', 'france', 'fl1'],
+                CL: ['ابطال', 'الابطال', 'دوري الابطال', 'champions', 'champions league', 'cl', 'ucl']
+            }
+            const leagueNames = { PL: 'الدوري الإنجليزي', PD: 'الدوري الإسباني', SA: 'الدوري الإيطالي', BL1: 'الدوري الألماني', FL1: 'الدوري الفرنسي', CL: 'دوري أبطال أوروبا' }
+            let leagueCode = null
+            for (const [code, keywords] of Object.entries(leagueMap)) {
+                if (keywords.some(k => leagueInput.includes(k))) { leagueCode = code; break }
+            }
+            if (!leagueCode) return await sock.sendMessage(from, { text: 'الدوري ده مش متاح 😅\nالدوريات المتاحة: انجليزي، اسباني، ايطالي، الماني، فرنسي، ابطال' })
+            const nowTs = Date.now()
+            if (!global._standingsCache) global._standingsCache = {}
+            if (global._standingsCache[leagueCode] && nowTs - global._standingsCache[leagueCode].ts < 3600000) {
+                return await sock.sendMessage(from, { text: global._standingsCache[leagueCode].msg })
+            }
+            try {
+                const res = await axios.get(`https://api.football-data.org/v4/competitions/${leagueCode}/standings`, {
+                    headers: { 'X-Auth-Token': process.env.FOOTBALL_API_KEY },
+                    timeout: 10000
+                })
+                const table = res.data.standings?.find(s => s.type === 'TOTAL')?.table || []
+                if (table.length === 0) return await sock.sendMessage(from, { text: 'مفيش بيانات للدوري ده دلوقتي 😅' })
+                const pluralPts = n => n === 1 ? 'نقطة' : 'نقطة'
+                let reply = `🏆 *جدول ${leagueNames[leagueCode]}*\n\n`
+                table.forEach(row => {
+                    const medal = row.position === 1 ? '🥇' : row.position === 2 ? '🥈' : row.position === 3 ? '🥉' : `${row.position}.`
+                    const team = row.team.shortName || row.team.tla || row.team.name
+                    reply += `${medal} ${team} — ${row.points} ${pluralPts(row.points)}\n`
+                })
+                reply = reply.trim()
+                global._standingsCache[leagueCode] = { ts: nowTs, msg: reply }
+                await sock.sendMessage(from, { text: reply })
+            } catch (e) {
+                await sock.sendMessage(from, { text: '❌ فشل جلب الترتيب، حاول تاني' })
+            }
+        }
+
+        else if (text.startsWith('.هداف')) {
+            if (!process.env.FOOTBALL_API_KEY) return await sock.sendMessage(from, { text: '❌ مفتاح FOOTBALL_API_KEY مش مضاف في Secrets' })
+            const leagueInput = text.replace('.هداف', '').trim().toLowerCase()
+            if (!leagueInput) return await sock.sendMessage(from, {
+                text: '📌 اكتب اسم الدوري. مثال: .هداف الانجليزي\nالدوريات المتاحة: انجليزي، اسباني، ايطالي، الماني، فرنسي، ابطال'
+            })
+            const leagueMap = {
+                PL:  ['انجليزي', 'الانجليزي', 'premier', 'premier league', 'pl', 'england'],
+                PD:  ['اسباني', 'الاسباني', 'laliga', 'la liga', 'spanish', 'spain', 'pd'],
+                SA:  ['ايطالي', 'الايطالي', 'serie a', 'seriea', 'italian', 'italy', 'sa'],
+                BL1: ['الماني', 'الالماني', 'bundesliga', 'german', 'germany', 'bl1'],
+                FL1: ['فرنسي', 'الفرنسي', 'ligue 1', 'ligue1', 'french', 'france', 'fl1'],
+                CL:  ['ابطال', 'الابطال', 'دوري الابطال', 'champions', 'champions league', 'cl', 'ucl']
+            }
+            const leagueNames = { PL: 'الدوري الإنجليزي', PD: 'الدوري الإسباني', SA: 'الدوري الإيطالي', BL1: 'الدوري الألماني', FL1: 'الدوري الفرنسي', CL: 'دوري أبطال أوروبا' }
+            let leagueCode = null
+            for (const [code, keywords] of Object.entries(leagueMap)) {
+                if (keywords.some(k => leagueInput.includes(k))) { leagueCode = code; break }
+            }
+            if (!leagueCode) return await sock.sendMessage(from, { text: 'الدوري ده مش متاح 😅\nالدوريات المتاحة: انجليزي، اسباني، ايطالي، الماني، فرنسي، ابطال' })
+            const nowTs = Date.now()
+            if (!global._scorersCache) global._scorersCache = {}
+            if (global._scorersCache[leagueCode] && nowTs - global._scorersCache[leagueCode].ts < 3600000) {
+                return await sock.sendMessage(from, { text: global._scorersCache[leagueCode].msg })
+            }
+            try {
+                const res = await axios.get(`https://api.football-data.org/v4/competitions/${leagueCode}/scorers?limit=10`, {
+                    headers: { 'X-Auth-Token': process.env.FOOTBALL_API_KEY },
+                    timeout: 10000
+                })
+                const scorers = res.data.scorers || []
+                if (scorers.length === 0) return await sock.sendMessage(from, { text: 'مفيش بيانات هدافين للدوري ده دلوقتي 😅' })
+                const medals = ['🥇', '🥈', '🥉']
+                let reply = `⚽ *أفضل هدافين ${leagueNames[leagueCode]}*\n\n`
+                scorers.forEach((s, i) => {
+                    const pos = medals[i] || `${i + 1}.`
+                    const name = s.player?.name || 'لاعب'
+                    const team = s.team?.shortName || s.team?.tla || s.team?.name || ''
+                    const goals = s.goals ?? 0
+                    const assists = s.assists ?? 0
+                    reply += `${pos} ${name} (${team}) — ${goals} هدف 🎯`
+                    if (assists > 0) reply += ` · ${assists} تمريرة`
+                    reply += '\n'
+                })
+                reply = reply.trim()
+                global._scorersCache[leagueCode] = { ts: nowTs, msg: reply }
+                await sock.sendMessage(from, { text: reply })
+            } catch (e) {
+                await sock.sendMessage(from, { text: '❌ فشل جلب الهدافين، حاول تاني' })
+            }
         }
 
         else if (text.startsWith('.تحذير')) {

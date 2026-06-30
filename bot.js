@@ -11,13 +11,13 @@ const ytdl = require('@distube/ytdl-core');
 const yts = require('yt-search');
 const QRCode = require('qrcode');
 const { upload } = require('uploader'); // هنستخدم API مجاني
-const express = require('express');
 
 const SESSION_FOLDER = './session'
 const DB_FILE = './database.json'
 
 const DEVELOPER_NUMBER = '201149182286'
 const DEVELOPER_JID = `${DEVELOPER_NUMBER}@s.whatsapp.net`
+const BOT_START_TIME = Date.now()
 
 const TRIVIA_QUESTIONS = [
     { q: '🌍 ما عاصمة فرنسا؟', a: 'باريس' },
@@ -287,19 +287,25 @@ async function startBot() {
     })
 
     sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update
-    if (qr) {
-        console.log('🔄 QR جديد جاهز...')
-        // هنحول QR لرابط صورة
-        const qrImage = await QRCode.toDataURL(qr);
-        // نرفعه على https://0x0.st او imgbb
-        const res = await axios.post('https://0x0.st', qrImage, {
-            headers: { 'Content-Type': 'text/plain' }
-        });
-        console.log('\n========== امسح الكيو ار ده ==========')
-        console.log(res.data) // <-- ده رابط الصورة المباشر
-        console.log('======================================\n')
+        const { connection, lastDisconnect, qr } = update
+        if (qr) {
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`
+            console.log('\n======== SCAN THIS QR URL ========')
+            console.log(qrUrl)
+            console.log('==================================\n')
+        }
+        if (connection === 'close') {
+            const code = lastDisconnect?.error?.output?.statusCode
+            const shouldReconnect = code !== DisconnectReason.loggedOut
+            console.log(`❌ الاتصال انقطع (كود: ${code}) — ${shouldReconnect ? 'بعيد الاتصال...' : 'تم تسجيل الخروج، محتاج QR جديد'}`)
+            if (shouldReconnect) {
+                setTimeout(() => startBot(), 3000)
             }
+        }
+        if (connection === 'open') {
+            console.log('✅ البوت اتوصل بنجاح!')
+        }
+    })
 
     sock.ev.on('group-participants.update', async (update) => {
         const { id, participants, action } = update
@@ -468,6 +474,22 @@ async function startBot() {
             await sock.sendMessage(from, { text: 'بنج 🏓 البوت صاحي' })
         }
 
+        else if (text === '.وقت التشغيل') {
+            const ms = Date.now() - BOT_START_TIME
+            const secs  = Math.floor(ms / 1000) % 60
+            const mins  = Math.floor(ms / 60000) % 60
+            const hours = Math.floor(ms / 3600000) % 24
+            const days  = Math.floor(ms / 86400000)
+            const parts = []
+            if (days)  parts.push(`${days} يوم`)
+            if (hours) parts.push(`${hours} ساعة`)
+            if (mins)  parts.push(`${mins} دقيقة`)
+            if (secs && !days) parts.push(`${secs} ثانية`)
+            await sock.sendMessage(from, {
+                text: `⏱️ *وقت تشغيل البوت*\n\n🟢 شغال من: ${parts.join(' و') || 'ثواني'}`
+            })
+        }
+
         else if (text === '.منو') {
             await sock.sendMessage(from, { text: `انت ${name} يا زعيم 👑` })
         }
@@ -481,6 +503,7 @@ async function startBot() {
                 `━━━━━━━ 🔧 *عام* ━━━━━━━\n` +
                 `▸ .هاي — ترحيب\n` +
                 `▸ .بنج — تشيك البوت\n` +
+                `▸ .وقت التشغيل — وقت تشغيل البوت ⏱️\n` +
                 `▸ .منو — يعرف اسمك\n` +
                 `▸ .الاوامر — قائمة الأوامر\n\n` +
 
@@ -492,6 +515,7 @@ async function startBot() {
                 `━━━━━━ 🎨 *وسائط* ━━━━━━\n` +
                 `▸ .ستيكر — رد على صورة\n` +
                 `▸ .ستيكر متحرك — رد على فيديو\n` +
+                `▸ .لصورة — حول ستيكر لصورة PNG\n` +
                 `▸ .صور [كلمة] — 3 صور افتراضي\n` +
                 `▸ .صور [كلمة] [1-10] — تحديد العدد\n` +
                 `▸ .اغنية [اسم] — تنزيل اغنية MP3\n\n` +
@@ -600,6 +624,18 @@ async function startBot() {
                 if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
                 if (outputPath && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
                 await sock.sendMessage(from, { text: '❌ فشل إنشاء الستيكر المتحرك' })
+            }
+        }
+
+        else if (text === '.لصورة') {
+            const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage
+            if (!quoted?.stickerMessage) return await sock.sendMessage(from, { text: 'رد على ستيكر يا معلم' })
+            try {
+                const buffer = await downloadMediaMessage({ message: quoted }, 'buffer', {}, { logger: pino({ level: 'silent' }), reuploadRequest: sock.updateMediaMessage })
+                const pngBuffer = await sharp(buffer).png().toBuffer()
+                await sock.sendMessage(from, { image: pngBuffer })
+            } catch (err) {
+                await sock.sendMessage(from, { text: '❌ فشل التحويل، حاول تاني' })
             }
         }
 
@@ -1775,6 +1811,9 @@ else if (text.startsWith('.اغنية')) {
             if (!user.title) return await sock.sendMessage(from, { text: '❌ ما عندكش لقب!' })
             const oldTitle = user.title; delete user.title; saveDB(db)
             await sock.sendMessage(from, { text: `✅ تم إزالة لقبك: ${oldTitle}` })
-      }
-      }  // <-- ده قفل m => 
-      startBot()
+        }
+
+    })  // end messages.upsert
+}  // end startBot
+
+startBot()

@@ -1776,7 +1776,7 @@ else if (text.startsWith('.اغنية')) {
             const oldTitle = user.title; delete user.title; saveDB(db)
             await sock.sendMessage(from, { text: `✅ تم إزالة لقبك: ${oldTitle}` })
         }
-    })
+    }
 }
 
 startBot()

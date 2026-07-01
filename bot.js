@@ -9,8 +9,6 @@ const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg')
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 const ytdl = require('@distube/ytdl-core');
 const yts = require('yt-search');
-const QRCode = require('qrcode');
-const { upload } = require('uploader'); // هنستخدم API مجاني
 
 const SESSION_FOLDER = './session'
 const DB_FILE = './database.json'

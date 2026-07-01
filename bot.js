@@ -294,10 +294,23 @@ async function startBot() {
         }
         if (connection === 'close') {
             const code = lastDisconnect?.error?.output?.statusCode
-            const shouldReconnect = code !== DisconnectReason.loggedOut
-            console.log(`❌ الاتصال انقطع (كود: ${code}) — ${shouldReconnect ? 'بعيد الاتصال...' : 'تم تسجيل الخروج، محتاج QR جديد'}`)
-            if (shouldReconnect) {
-                setTimeout(() => startBot(), 3000)
+            const isLoggedOut = code === DisconnectReason.loggedOut
+            const is405 = code === 405
+
+            if (is405) {
+                console.log('⚠️ كود 405 — سيشن تالف، بمسحه وبطلب QR جديد...')
+                try {
+                    fs.rmSync(SESSION_FOLDER, { recursive: true, force: true })
+                    console.log('🗑️ تم مسح السيشن')
+                } catch (e) {
+                    console.log('❌ فشل مسح السيشن:', e.message)
+                }
+                setTimeout(() => startBot(), 5000)
+            } else if (isLoggedOut) {
+                console.log('🔴 تم تسجيل الخروج — محتاج QR جديد ومش هيعيد الاتصال تلقائياً')
+            } else {
+                console.log(`❌ الاتصال انقطع (كود: ${code}) — بعيد الاتصال بعد 5 ثواني...`)
+                setTimeout(() => startBot(), 5000)
             }
         }
         if (connection === 'open') {

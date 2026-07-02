@@ -810,7 +810,9 @@ else if (text.startsWith('.اغنية')) {
             if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+    p => normalizeJid(p.id) === normalizeJid(senderId)
+)?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يغيروا الوضع' })
                 const db = loadDB(); const groupData = getGroup(db, from)
                 groupData.mode = 'اعضاء'; saveDB(db)
@@ -873,16 +875,22 @@ else if (text.startsWith('.اغنية')) {
         }
 
         else if (text === '.حذف') {
-            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
-            try {
-                const groupMeta = await sock.groupMetadata(from)
-                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
-                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
-                const stanzaId = msg.message.extendedTextMessage?.contextInfo?.stanzaId
-                if (!stanzaId) return await sock.sendMessage(from, { text: '❌ ارد على الرسالة اللي تريد تحذفها' })
-                await sock.sendMessage(from, { delete: msg.message.extendedTextMessage.contextInfo.stanzaId })
-            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ في الحذف' }) }
-        }
+        const ctx = msg.message.extendedTextMessage?.contextInfo
+
+if (!ctx) {
+    return await sock.sendMessage(from, {
+        text: '❌ لازم ترد على الرسالة.'
+    })
+}
+
+await sock.sendMessage(from, {
+    delete: {
+        remoteJid: from,
+        fromMe: false,
+        id: ctx.stanzaId,
+        participant: ctx.participant
+    }
+})
 
         else if (text.startsWith('.شات ')) {
             const question = text.replace('.شات ', '').trim()

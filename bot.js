@@ -9,36 +9,33 @@ const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg')
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 const ytdl = require('@distube/ytdl-core');
 const yts = require('yt-search');
-const config = {
-  "OWNER": "201149182286",
-  "eliteList": ["201149182286@s.whatsapp.net"]
-}
 
 const SESSION_FOLDER = './session'
 const DB_FILE = './database.json'
-const ELITE_FILE = './eliteList.json'
-const CONFIG_FILE = './config.json'
 
-function loadConfig() {
-    try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')) } catch { return { OWNER: DEVELOPER_NUMBER, eliteList: [DEVELOPER_JID] } }
+const config = {
+    OWNER: '201149182286',
+    eliteList: ['201149182286@s.whatsapp.net']
 }
-function loadElite() {
-    if (!fs.existsSync(ELITE_FILE)) fs.writeFileSync(ELITE_FILE, JSON.stringify([DEVELOPER_JID], null, 2))
-    try { return JSON.parse(fs.readFileSync(ELITE_FILE, 'utf8')) } catch { return [DEVELOPER_JID] }
-}
-function saveElite(list) { fs.writeFileSync(ELITE_FILE, JSON.stringify(list, null, 2)) }
-function isOwner(senderId) {
-    const cfg = loadConfig()
-    const ownerClean = cfg.OWNER.replace(/\D/g, '')
-    return senderId.split('@')[0] === ownerClean || senderId === `${ownerClean}@s.whatsapp.net`
-}
-function normalizeBotId(rawId) {
-    return rawId.includes(':') ? rawId.replace(/:\d+@/, '@') : rawId
-}
+// المطور دايماً في المقدمة — حماية من الحذف العرضي
+const PROTECTED_JID = '201149182286@s.whatsapp.net'
+if (!config.eliteList.includes(PROTECTED_JID)) config.eliteList.unshift(PROTECTED_JID)
 
 const DEVELOPER_NUMBER = '201149182286'
 const DEVELOPER_JID = `${DEVELOPER_NUMBER}@s.whatsapp.net`
 const BOT_START_TIME = Date.now()
+
+function normalizeJid(jid) {
+    return jid ? jid.replace(/:\d+@/, '@') : jid
+}
+function isBotAdmin(groupMeta, rawBotId) {
+    const botJid = normalizeJid(rawBotId)
+    return groupMeta.participants.some(p => normalizeJid(p.id) === botJid && p.admin != null)
+}
+function isOwner(senderId) {
+    const clean = normalizeJid(senderId)
+    return clean === `${config.OWNER}@s.whatsapp.net` || clean.split('@')[0] === config.OWNER
+}
 
 const TRIVIA_QUESTIONS = [
     { q: '🌍 ما عاصمة فرنسا؟', a: 'باريس' },
@@ -247,16 +244,13 @@ function addXP(user, amount) {
 }
 
 function canUseBot(senderId, groupData, isAdmin) {
-    const cleanSender = senderId.split('@')[0]
-    if (cleanSender === DEVELOPER_NUMBER || senderId === DEVELOPER_JID) return true
+    const cleanSender = normalizeJid(senderId)
+    if (cleanSender === DEVELOPER_JID || cleanSender.split('@')[0] === DEVELOPER_NUMBER) return true
     if (!groupData) return true
     const mode = groupData.mode || 'اعضاء'
     if (mode === 'اعضاء') return true
     if (mode === 'مشرفين') return isAdmin
-    if (mode === 'نخبة') {
-        const elite = loadElite()
-        return elite.includes(senderId) || groupData.elite.includes(senderId)
-    }
+    if (mode === 'نخبة') return config.eliteList.includes(senderId) || config.eliteList.includes(normalizeJid(senderId))
     return true
 }
 
@@ -278,6 +272,16 @@ const chatCooldown = new Map()
 
 async function startBot() {
     console.log('بشغل البوت...')
+    // تحميل النخبة المحفوظة من database.json
+    try {
+        const db = loadDB()
+        if (Array.isArray(db.eliteList) && db.eliteList.length > 0) {
+            for (const jid of db.eliteList) {
+                if (!config.eliteList.includes(jid)) config.eliteList.push(jid)
+            }
+            console.log(`✅ تم تحميل النخبة: ${config.eliteList.length} عضو`)
+        }
+    } catch (e) { console.log('⚠️ فشل تحميل النخبة:', e.message) }
 
     if (process.env.SESSION_DATA && !fs.existsSync(path.join(SESSION_FOLDER, 'creds.json'))) {
         console.log('⏳ بيحمل السيشن من ENV...')
@@ -814,44 +818,58 @@ else if (text.startsWith('.اغنية')) {
             } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
         }
 
-        else if (text.startsWith('.اضافة للنخبة')) {
-            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+        else if (text.startsWith('.اضافة نخبة') || text.startsWith('.اضافة للنخبة')) {
             if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
-            try {
-                const targetId = mentioned[0]
-                const elite = loadElite()
-                if (elite.includes(targetId)) return await sock.sendMessage(from, { text: `⭐ موجود في النخبة أصلاً`, mentions: [targetId] })
-                elite.push(targetId)
-                saveElite(elite)
-                await sock.sendMessage(from, { text: `⭐ *تم إضافة @${targetId.split('@')[0]} للنخبة!*\n✅ محفوظ في eliteList.json`, mentions: [targetId] })
-            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: '📌 اعمل منشن للشخص اللي هينضاف للنخبة\nمثال: .اضافة نخبة @شخص' })
+            const targetId = normalizeJid(mentioned[0])
+            if (config.eliteList.includes(targetId)) return await sock.sendMessage(from, { text: `⭐ @${targetId.split('@')[0]} موجود في النخبة أصلاً`, mentions: [mentioned[0]] })
+            config.eliteList.push(targetId)
+            await sock.sendMessage(from, {
+                text: `⭐ *تم إضافة @${targetId.split('@')[0]} للنخبة!*\n\n📋 قائمة النخبة الحالية: ${config.eliteList.length} عضو`,
+                mentions: [mentioned[0]]
+            })
         }
 
-        else if (text.startsWith('.حذف من النخبة') || text.startsWith('.حذف نخبة')) {
-            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+        else if (text.startsWith('.ازالة نخبة') || text.startsWith('.حذف نخبة') || text.startsWith('.حذف من النخبة')) {
             if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
-            try {
-                const targetId = mentioned[0]
-                const elite = loadElite()
-                if (!elite.includes(targetId)) return await sock.sendMessage(from, { text: `❌ @${targetId.split('@')[0]} مش في النخبة أصلاً`, mentions: [targetId] })
-                saveElite(elite.filter(id => id !== targetId))
-                await sock.sendMessage(from, { text: `✅ *تم حذف @${targetId.split('@')[0]} من النخبة*`, mentions: [targetId] })
-            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: '📌 اعمل منشن للشخص اللي هيتحذف من النخبة\nمثال: .ازالة نخبة @شخص' })
+            const targetId = normalizeJid(mentioned[0])
+            if (targetId === PROTECTED_JID) return await sock.sendMessage(from, { text: '❌ مش تقدر تحذف المطور من النخبة!' })
+            if (!config.eliteList.includes(targetId)) return await sock.sendMessage(from, { text: `❌ @${targetId.split('@')[0]} مش في النخبة أصلاً`, mentions: [mentioned[0]] })
+            config.eliteList.splice(config.eliteList.indexOf(targetId), 1)
+            await sock.sendMessage(from, {
+                text: `✅ *تم إزالة @${targetId.split('@')[0]} من النخبة*\n\n📋 قائمة النخبة الحالية: ${config.eliteList.length} عضو`,
+                mentions: [mentioned[0]]
+            })
         }
 
-        else if (text === '.قائمة النخبة') {
-            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
-            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المطور بس يا غالي' })
+        else if (text === '.نخبة' || text === '.قائمة النخبة') {
+            if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
+            if (config.eliteList.length === 0) return await sock.sendMessage(from, { text: '❌ مفيش حد في النخبة' })
+            const list = config.eliteList.map((id, i) => {
+                const num = i === 0 ? '👑' : `${i + 1}.`
+                return `${num} @${id.split('@')[0]}`
+            }).join('\n')
+            await sock.sendMessage(from, {
+                text: `⭐ *قائمة النخبة (${config.eliteList.length} عضو):*\n\n${list}`,
+                mentions: config.eliteList
+            })
+        }
+
+        else if (text === '.حفظ نخبة') {
+            if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             try {
-                const db = loadDB(); const groupData = getGroup(db, from)
-                if (!groupData.elite || groupData.elite.length === 0) return await sock.sendMessage(from, { text: '❌ مفيش حد في النخبة' })
-                const list = groupData.elite.map((id, i) => `${i + 1}. @${id.split('@')[0]}`).join('\n')
-                await sock.sendMessage(from, { text: `⭐ *قائمة النخبة:*\n\n${list}`, mentions: groupData.elite })
-            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+                const db = loadDB()
+                db.eliteList = config.eliteList
+                saveDB(db)
+                await sock.sendMessage(from, {
+                    text: `💾 *تم حفظ النخبة بنجاح!*\n\n✅ ${config.eliteList.length} عضو محفوظين في قاعدة البيانات\n🔄 هيتحملوا تلقائياً عند إعادة تشغيل البوت`
+                })
+            } catch (e) {
+                await sock.sendMessage(from, { text: `❌ فشل الحفظ: ${e.message}` })
+            }
         }
 
         else if (text === '.حذف') {
@@ -1246,7 +1264,7 @@ else if (text.startsWith('.اغنية')) {
                 const groupMeta = await sock.groupMetadata(from)
                 const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
-                if (!isBotAdmin(groupMeta, normalizeBotId(sock.user.id))) return await sock.sendMessage(from, { text: '❌ لازم اكون ادمن عشان أطرد' })
+                if (!isBotAdmin(groupMeta, sock.user.id)) return await sock.sendMessage(from, { text: '❌ لازم اكون ادمن عشان أطرد' })
                 const targetId = mentioned[0]
                 if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تطرد المطور!' })
                 try {
@@ -1313,7 +1331,7 @@ else if (text.startsWith('.اغنية')) {
                 const groupMeta = await sock.groupMetadata(from)
                 const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
-                if (!isBotAdmin(groupMeta, normalizeBotId(sock.user.id))) return await sock.sendMessage(from, { text: '❌ لازم اكون ادمن عشان أكتم (بحذف رسائله)' })
+                if (!isBotAdmin(groupMeta, sock.user.id)) return await sock.sendMessage(from, { text: '❌ لازم اكون ادمن عشان أكتم (بحذف رسائله)' })
                 const targetId = mentioned[0]
                 if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تكتم المطور!' })
                 const db = loadDB(); const groupData = getGroup(db, from)

@@ -255,10 +255,9 @@ function canUseBot(senderId, groupData, isAdmin) {
     const mode = groupData.mode || 'اعضاء'
     if (mode === 'اعضاء') return true
     if (mode === 'مشرفين') return isAdmin
-    if (mode === 'نخبة') const clean = normalizeJid(senderId)
-
-return config.eliteList.some(id => normalizeJid(id) === clean) || config.eliteList.includes(normalizeJid(senderId))
-    return true
+    if (mode === 'نخبة') {
+    const clean = normalizeJid(senderId)
+    return config.eliteList.some(id => normalizeJid(id) === clean)
 }
 
 function canModerate(senderId, isAdmin) {
@@ -512,7 +511,10 @@ async function startBot() {
                 const db = loadDB()
                 const groupData = getGroup(db, from)
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                const isAdmin =
+groupMeta.participants.find(
+    p => normalizeJid(p.id) === normalizeJid(senderId)
+)?.admin != null
                 if (!canUseBot(senderId, groupData, isAdmin)) {
                     const modeTxt = groupData.mode === 'مشرفين' ? 'المشرفين فقط' : 'النخبة فقط'
                     await sock.sendMessage(from, { text: `🔒 البوت في وضع *${modeTxt}* - مش تقدر تستخدمه` })

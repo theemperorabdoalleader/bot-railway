@@ -923,15 +923,6 @@ else if (text.startsWith('.اغنية')) {
     }
 }
 
-await sock.sendMessage(from, {
-    delete: {
-        remoteJid: from,
-        fromMe: false,
-        id: ctx.stanzaId,
-        participant: ctx.participant
-    }
-})
-
         else if (text.startsWith('.شات ')) {
             const question = text.replace('.شات ', '').trim()
             if (!question) return await sock.sendMessage(from, { text: '📌 اكتب سؤالك بعد الامر. مثال: .شات من هو نابليون' })

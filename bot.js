@@ -33,10 +33,15 @@ function isBotAdmin(groupMeta, rawBotId) {
     return groupMeta.participants.some(p => normalizeJid(p.id) === botJid && p.admin != null)
 }
 function isOwner(senderId) {
-    const clean = normalizeJid(senderId)
-    return clean === `${config.OWNER}@s.whatsapp.net` || clean.split('@')[0] === config.OWNER
-}
+    if (!senderId) return false
 
+    const clean = normalizeJid(senderId)
+        .replace('@lid', '')
+        .replace('@s.whatsapp.net', '')
+        .split(':')[0]
+
+    return clean === DEVELOPER_NUMBER
+    }
 const TRIVIA_QUESTIONS = [
     { q: '🌍 ما عاصمة فرنسا؟', a: 'باريس' },
     { q: '🌍 ما عاصمة اليابان؟', a: 'طوكيو' },
@@ -260,9 +265,15 @@ function canModerate(senderId, isAdmin) {
 }
 
 function isDeveloper(senderId) {
-    return senderId.split('@')[0] === DEVELOPER_NUMBER || senderId === DEVELOPER_JID
-}
+    if (!senderId) return false
 
+    const clean = normalizeJid(senderId)
+        .replace('@lid', '')
+        .replace('@s.whatsapp.net', '')
+        .split(':')[0]
+
+    return clean === DEVELOPER_NUMBER
+            }
 function isBotAdmin(groupMeta, botId) {
     const normalBot = normalizeBotId(botId)
     return groupMeta.participants.some(p => normalizeBotId(p.id) === normalBot && p.admin != null)
@@ -821,7 +832,7 @@ else if (text.startsWith('.اغنية')) {
         }
 
         else if (text.startsWith('.اضافة نخبة') || text.startsWith('.اضافة للنخبة')) {
-            if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: '📌 اعمل منشن للشخص اللي هينضاف للنخبة\nمثال: .اضافة نخبة @شخص' })
             const targetId = normalizeJid(mentioned[0])
@@ -834,7 +845,7 @@ else if (text.startsWith('.اغنية')) {
         }
 
         else if (text.startsWith('.ازالة نخبة') || text.startsWith('.حذف نخبة') || text.startsWith('.حذف من النخبة')) {
-            if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: '📌 اعمل منشن للشخص اللي هيتحذف من النخبة\nمثال: .ازالة نخبة @شخص' })
             const targetId = normalizeJid(mentioned[0])
@@ -848,7 +859,7 @@ else if (text.startsWith('.اغنية')) {
         }
 
         else if (text === '.نخبة' || text === '.قائمة النخبة') {
-            if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             if (config.eliteList.length === 0) return await sock.sendMessage(from, { text: '❌ مفيش حد في النخبة' })
             const list = config.eliteList.map((id, i) => {
                 const num = i === 0 ? '👑' : `${i + 1}.`
@@ -861,7 +872,7 @@ else if (text.startsWith('.اغنية')) {
         }
 
         else if (text === '.حفظ نخبة') {
-            if (!isOwner(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             try {
                 const db = loadDB()
                 db.eliteList = config.eliteList
@@ -875,12 +886,41 @@ else if (text.startsWith('.اغنية')) {
         }
 
         else if (text === '.حذف') {
-        const ctx = msg.message.extendedTextMessage?.contextInfo
+    if (!isGroup)
+        return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
 
-if (!ctx) {
-    return await sock.sendMessage(from, {
-        text: '❌ لازم ترد على الرسالة.'
-    })
+    try {
+        const groupMeta = await sock.groupMetadata(from)
+
+        const isAdmin = groupMeta.participants.find(
+            p => normalizeJid(p.id) === normalizeJid(senderId)
+        )?.admin != null
+
+        if (!canModerate(senderId, isAdmin))
+            return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
+
+        const ctx = msg.message?.extendedTextMessage?.contextInfo
+
+        if (!ctx)
+            return await sock.sendMessage(from, {
+                text: '❌ لازم ترد على الرسالة اللي عايز تحذفها'
+            })
+
+        await sock.sendMessage(from, {
+            delete: {
+                remoteJid: from,
+                fromMe: false,
+                id: ctx.stanzaId,
+                participant: ctx.participant
+            }
+        })
+
+    } catch (e) {
+        console.log(e)
+        await sock.sendMessage(from, {
+            text: `❌ حصل خطأ:\n${e.message}`
+        })
+    }
 }
 
 await sock.sendMessage(from, {

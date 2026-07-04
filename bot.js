@@ -21,10 +21,13 @@ const config = {
 const PROTECTED_JID = '201149182286@s.whatsapp.net'
 if (!config.eliteList.includes(PROTECTED_JID)) config.eliteList.unshift(PROTECTED_JID)
 
-const DEVELOPER_NUMBER = '201149182286'
+const DEVELOPER_NUMBER = "01149182286@s.whatsapp.net"
 const DEVELOPER_JID = `${DEVELOPER_NUMBER}@s.whatsapp.net`
 const BOT_START_TIME = Date.now()
 
+function isDeveloper(id) {
+    return normalizeJid(id) === normalizeJid(DEVELOPER_NUMBER)
+}
 function normalizeJid(jid) {
     return jid ? jid.replace(/:\d+@/, '@') : jid
 }
@@ -278,6 +281,10 @@ function isDeveloper(senderId) {
 function isBotAdmin(groupMeta, botId) {
     const normalBot = normalizeBotId(botId)
     return groupMeta.participants.some(p => normalizeBotId(p.id) === normalBot && p.admin != null)
+}
+    function isElite(userId) {
+    const db = loadDB()
+    return db.elite?.includes(normalizeJid(userId))
 }
 
 const chatCooldown = new Map()
@@ -813,19 +820,17 @@ groupMeta.participants.find(
         }
 
         else if (text === '.مود نخبة') {
-            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
-            try {
-                const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
-                if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يغيروا الوضع' })
-                const db = loadDB(); const groupData = getGroup(db, from)
-                groupData.mode = 'نخبة'; saveDB(db)
-                await sock.sendMessage(from, { text: '⭐ *تم تفعيل وضع النخبة*' })
-            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
-        }
+    if (!isDeveloper(senderId))
+        return await sock.sendMessage(from, { text: '❌ الأمر ده للمطور بس' })
+
+    const db = loadDB()
+    db.eliteMode = !db.eliteMode
+    saveDB(db)
+
+    return await sock.sendMessage(from, {
+        text: db.eliteMode ? '👑 تم تشغيل مود النخبة' : '❌ تم إيقاف مود النخبة'
+    })
+}
 
         else if (text === '.مود اعضاء') {
             if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
@@ -841,46 +846,52 @@ groupMeta.participants.find(
             } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
         }
 
-        else if (text.startsWith('.اضافة نخبة') || text.startsWith('.اضافة للنخبة')) {
-            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
-            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: '📌 اعمل منشن للشخص اللي هينضاف للنخبة\nمثال: .اضافة نخبة @شخص' })
-            const targetId = normalizeJid(mentioned[0])
-            if (config.eliteList.includes(targetId)) return await sock.sendMessage(from, { text: `⭐ @${targetId.split('@')[0]} موجود في النخبة أصلاً`, mentions: [mentioned[0]] })
-            config.eliteList.push(targetId)
-            await sock.sendMessage(from, {
-                text: `⭐ *تم إضافة @${targetId.split('@')[0]} للنخبة!*\n\n📋 قائمة النخبة الحالية: ${config.eliteList.length} عضو`,
-                mentions: [mentioned[0]]
-            })
-        }
+        else if (text.startsWith('.اضافة للنخبة')) {
+    if (!isDeveloper(senderId))
+        return await sock.sendMessage(from, { text: '❌ للمطور فقط' })
 
-        else if (text.startsWith('.ازالة نخبة') || text.startsWith('.حذف نخبة') || text.startsWith('.حذف من النخبة')) {
-            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
-            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-            if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: '📌 اعمل منشن للشخص اللي هيتحذف من النخبة\nمثال: .ازالة نخبة @شخص' })
-            const targetId = normalizeJid(mentioned[0])
-            if (targetId === PROTECTED_JID) return await sock.sendMessage(from, { text: '❌ مش تقدر تحذف المطور من النخبة!' })
-            if (!config.eliteList.includes(targetId)) return await sock.sendMessage(from, { text: `❌ @${targetId.split('@')[0]} مش في النخبة أصلاً`, mentions: [mentioned[0]] })
-            config.eliteList.splice(config.eliteList.indexOf(targetId), 1)
-            await sock.sendMessage(from, {
-                text: `✅ *تم إزالة @${targetId.split('@')[0]} من النخبة*\n\n📋 قائمة النخبة الحالية: ${config.eliteList.length} عضو`,
-                mentions: [mentioned[0]]
-            })
-        }
+    const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+    if (!mentioned || mentioned.length === 0)
+        return await sock.sendMessage(from, { text: '❌ اعمل منشن للشخص' })
 
-        else if (text === '.نخبة' || text === '.قائمة النخبة') {
-            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
-            if (config.eliteList.length === 0) return await sock.sendMessage(from, { text: '❌ مفيش حد في النخبة' })
-            const list = config.eliteList.map((id, i) => {
-                const num = i === 0 ? '👑' : `${i + 1}.`
-                return `${num} @${id.split('@')[0]}`
-            }).join('\n')
-            await sock.sendMessage(from, {
-                text: `⭐ *قائمة النخبة (${config.eliteList.length} عضو):*\n\n${list}`,
-                mentions: config.eliteList
-            })
-        }
+    const db = loadDB()
+    if (!db.elite) db.elite = []
 
+    for (let id of mentioned) {
+        id = normalizeJid(id)
+        if (!db.elite.includes(id)) db.elite.push(id)
+    }
+
+    saveDB(db)
+
+    await sock.sendMessage(from, {
+        text: '👑 تم إضافة المستخدمين للنخبة',
+        mentions: mentioned
+    })
+}
+        else if (text.startsWith('.ازالة من النخبة')) {
+    if (!isDeveloper(senderId))
+        return await sock.sendMessage(from, { text: '❌ للمطور فقط' })
+
+    const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+    if (!mentioned || mentioned.length === 0)
+        return await sock.sendMessage(from, { text: '❌ اعمل منشن للشخص' })
+
+    const db = loadDB()
+    if (!db.elite) db.elite = []
+
+    for (let id of mentioned) {
+        id = normalizeJid(id)
+        db.elite = db.elite.filter(x => x !== id)
+    }
+
+    saveDB(db)
+
+    await sock.sendMessage(from, {
+        text: '❌ تم إزالة المستخدمين من النخبة',
+        mentions: mentioned
+    })
+}
         else if (text === '.حفظ نخبة') {
             if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             try {

@@ -21,13 +21,10 @@ const config = {
 const PROTECTED_JID = '201149182286@s.whatsapp.net'
 if (!config.eliteList.includes(PROTECTED_JID)) config.eliteList.unshift(PROTECTED_JID)
 
-const DEVELOPER_NUMBER = "01149182286@s.whatsapp.net"
+const DEVELOPER_NUMBER = "201149182286"
 const DEVELOPER_JID = `${DEVELOPER_NUMBER}@s.whatsapp.net`
 const BOT_START_TIME = Date.now()
 
-function isDeveloper(id) {
-    return normalizeJid(id) === normalizeJid(DEVELOPER_NUMBER)
-}
 function normalizeJid(jid) {
     return jid ? jid.replace(/:\d+@/, '@') : jid
 }
@@ -251,7 +248,7 @@ function addXP(user, amount) {
     user.level = calcLevel(user.xp)
 }
 
-function canUseBot(senderId, groupData, isAdmin) {
+function canUseBot(senderId, groupData, isAdmin, db) {
     const cleanSender = normalizeJid(senderId)
 
     if (cleanSender === DEVELOPER_JID || cleanSender.split('@')[0] === DEVELOPER_NUMBER)
@@ -266,7 +263,9 @@ function canUseBot(senderId, groupData, isAdmin) {
 
     if (mode === 'نخبة') {
         const clean = normalizeJid(senderId)
-        return config.eliteList.some(id => normalizeJid(id) === clean)
+        const dbElite = (db && Array.isArray(db.elite)) ? db.elite : []
+        return config.eliteList.some(id => normalizeJid(id) === clean) ||
+               dbElite.some(id => normalizeJid(id) === clean)
     }
 
     return false
@@ -286,11 +285,7 @@ function isDeveloper(senderId) {
 
     return clean === DEVELOPER_NUMBER
 }
-function isBotAdmin(groupMeta, botId) {
-    const normalBot = normalizeBotId(botId)
-    return groupMeta.participants.some(p => normalizeBotId(p.id) === normalBot && p.admin != null)
-}
-    function isElite(userId) {
+function isElite(userId) {
     const db = loadDB()
     return db.elite?.includes(normalizeJid(userId))
 }
@@ -405,7 +400,7 @@ async function startBot() {
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
         const from = msg.key.remoteJid
         const name = msg.pushName || 'مجهول'
-        const senderId = msg.key.participant || msg.key.remoteJid
+        const senderId = normalizeJid(msg.key.participant || msg.key.remoteJid)
         const isGroup = from.endsWith('@g.us')
 
         if (isGroup) {
@@ -530,7 +525,7 @@ async function startBot() {
 groupMeta.participants.find(
     p => normalizeJid(p.id) === normalizeJid(senderId)
 )?.admin != null
-                if (!canUseBot(senderId, groupData, isAdmin)) {
+                if (!canUseBot(senderId, groupData, isAdmin, db)) {
                     const modeTxt = groupData.mode === 'مشرفين' ? 'المشرفين فقط' : 'النخبة فقط'
                     await sock.sendMessage(from, { text: `🔒 البوت في وضع *${modeTxt}* - مش تقدر تستخدمه` })
                     return
@@ -828,16 +823,16 @@ groupMeta.participants.find(
         }
 
         else if (text === '.مود نخبة') {
+    if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
     if (!isDeveloper(senderId))
         return await sock.sendMessage(from, { text: '❌ الأمر ده للمطور بس' })
 
-    const db = loadDB()
-    db.eliteMode = !db.eliteMode
-    saveDB(db)
-
-    return await sock.sendMessage(from, {
-        text: db.eliteMode ? '👑 تم تشغيل مود النخبة' : '❌ تم إيقاف مود النخبة'
-    })
+    try {
+        const db = loadDB(); const groupData = getGroup(db, from)
+        groupData.mode = 'نخبة'
+        saveDB(db)
+        await sock.sendMessage(from, { text: '👑 *تم تفعيل وضع النخبة بالجروب*' })
+    } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
 }
 
         else if (text === '.مود اعضاء') {
@@ -900,6 +895,16 @@ groupMeta.participants.find(
         mentions: mentioned
     })
 }
+        else if (text === '.قائمة النخبة') {
+            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
+            const db = loadDB()
+            const dbElite = Array.isArray(db.elite) ? db.elite : []
+            const all = [...new Set([...config.eliteList, ...dbElite])]
+            if (all.length === 0) return await sock.sendMessage(from, { text: '👑 مفيش حد في النخبة لسه' })
+            const list = all.map((id, i) => `${i + 1}. @${id.split('@')[0]}`).join('\n')
+            await sock.sendMessage(from, { text: `👑 *قائمة النخبة:*\n\n${list}`, mentions: all })
+        }
+
         else if (text === '.حفظ نخبة') {
             if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             try {

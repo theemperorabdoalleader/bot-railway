@@ -253,21 +253,29 @@ function addXP(user, amount) {
 
 function canUseBot(senderId, groupData, isAdmin) {
     const cleanSender = normalizeJid(senderId)
-    if (cleanSender === DEVELOPER_JID || cleanSender.split('@')[0] === DEVELOPER_NUMBER) return true
+
+    if (cleanSender === DEVELOPER_JID || cleanSender.split('@')[0] === DEVELOPER_NUMBER)
+        return true
+
     if (!groupData) return true
+
     const mode = groupData.mode || 'اعضاء'
+
     if (mode === 'اعضاء') return true
     if (mode === 'مشرفين') return isAdmin
+
     if (mode === 'نخبة') {
-    const clean = normalizeJid(senderId)
-    return config.eliteList.some(id => normalizeJid(id) === clean)
+        const clean = normalizeJid(senderId)
+        return config.eliteList.some(id => normalizeJid(id) === clean)
+    }
+
+    return false
 }
 
 function canModerate(senderId, isAdmin) {
     const cleanSender = senderId.split('@')[0]
     return cleanSender === DEVELOPER_NUMBER || senderId === DEVELOPER_JID || isAdmin
 }
-
 function isDeveloper(senderId) {
     if (!senderId) return false
 
@@ -277,7 +285,7 @@ function isDeveloper(senderId) {
         .split(':')[0]
 
     return clean === DEVELOPER_NUMBER
-            }
+}
 function isBotAdmin(groupMeta, botId) {
     const normalBot = normalizeBotId(botId)
     return groupMeta.participants.some(p => normalizeBotId(p.id) === normalBot && p.admin != null)

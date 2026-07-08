@@ -13,35 +13,35 @@ const yts = require('yt-search');
 const SESSION_FOLDER = './session'
 const DB_FILE = './database.json'
 
-const config = {
-    OWNER: '201149182286',
-    eliteList: ['201149182286@s.whatsapp.net']
-}
-// المطور دايماً في المقدمة — حماية من الحذف العرضي
-const PROTECTED_JID = '201149182286@s.whatsapp.net'
-if (!config.eliteList.includes(PROTECTED_JID)) config.eliteList.unshift(PROTECTED_JID)
-
 const DEVELOPER_NUMBER = "201149182286"
 const DEVELOPER_JID = `${DEVELOPER_NUMBER}@s.whatsapp.net`
 const BOT_START_TIME = Date.now()
 
+// المطور دايماً في المقدمة — حماية من الحذف العرضي
+const PROTECTED_JID = '201149182286@s.whatsapp.net'
+
 function normalizeJid(jid) {
     return jid ? jid.replace(/:\d+@/, '@') : jid
 }
+
 function isBotAdmin(groupMeta, rawBotId) {
     const botJid = normalizeJid(rawBotId)
-    return groupMeta.participants.some(p => normalizeJid(p.id) === botJid && p.admin != null)
-}
-function isOwner(senderId) {
-    if (!senderId) return false
 
+    return groupMeta.participants.some(p =>
+        normalizeJid(p.jid || p.id) === botJid &&
+        (p.admin === 'admin' || p.admin === 'superadmin')
+    )
+}
+
+function isDeveloper(senderId) {
+    if (!senderId) return false
     const clean = normalizeJid(senderId)
         .replace('@lid', '')
         .replace('@s.whatsapp.net', '')
         .split(':')[0]
-
     return clean === DEVELOPER_NUMBER
-    }
+}
+
 const TRIVIA_QUESTIONS = [
     { q: '🌍 ما عاصمة فرنسا؟', a: 'باريس' },
     { q: '🌍 ما عاصمة اليابان؟', a: 'طوكيو' },
@@ -90,7 +90,6 @@ const TRIVIA_QUESTIONS = [
     { q: '⭐ ما أقدم حضارة في العالم؟', a: 'السومرية' },
 ]
 
-// ====== الألغاز - أكثر من 50 لغز ======
 const PUZZLES = [
     { q: '🤔 ما هو الشيء الذي له أسنان لكن لا يعض؟', a: 'مشط', hint: 'يُستخدم للشعر' },
     { q: '🤔 كلما أخذت منه كبر، ما هو؟', a: 'حفرة', hint: 'في الأرض' },
@@ -148,7 +147,6 @@ const PUZZLES = [
     { q: '🤔 ما هو الشيء الذي يكبر كلما أضفت إليه ماء؟', a: 'عجين', hint: 'تصنع منه الخبز' },
 ]
 
-// ====== أعين الأنمي - 35 عين شغالة ======
 const ANIME_EYES = [
     { name: 'شارينغان - ساسكي', url: 'https://i.postimg.cc/6qZ3bG1R/sasuke-sharingan.jpg' },
     { name: 'رينيغان - ناغاتو', url: 'https://i.postimg.cc/8z4kV9cL/nagato-rinnegan.jpg' },
@@ -264,8 +262,7 @@ function canUseBot(senderId, groupData, isAdmin, db) {
     if (mode === 'نخبة') {
         const clean = normalizeJid(senderId)
         const dbElite = (db && Array.isArray(db.elite)) ? db.elite : []
-        return config.eliteList.some(id => normalizeJid(id) === clean) ||
-               dbElite.some(id => normalizeJid(id) === clean)
+        return dbElite.some(id => normalizeJid(id) === clean)
     }
 
     return false
@@ -275,35 +272,19 @@ function canModerate(senderId, isAdmin) {
     const cleanSender = senderId.split('@')[0]
     return cleanSender === DEVELOPER_NUMBER || senderId === DEVELOPER_JID || isAdmin
 }
-function isDeveloper(senderId) {
-    if (!senderId) return false
-
-    const clean = normalizeJid(senderId)
-        .replace('@lid', '')
-        .replace('@s.whatsapp.net', '')
-        .split(':')[0]
-
-    return clean === DEVELOPER_NUMBER
-}
-function isElite(userId) {
-    const db = loadDB()
-    return db.elite?.includes(normalizeJid(userId))
-}
 
 const chatCooldown = new Map()
+const actionCooldowns = new Map()
 
 async function startBot() {
     console.log('بشغل البوت...')
-    // تحميل النخبة المحفوظة من database.json
-    try {
-        const db = loadDB()
-        if (Array.isArray(db.eliteList) && db.eliteList.length > 0) {
-            for (const jid of db.eliteList) {
-                if (!config.eliteList.includes(jid)) config.eliteList.push(jid)
-            }
-            console.log(`✅ تم تحميل النخبة: ${config.eliteList.length} عضو`)
-        }
-    } catch (e) { console.log('⚠️ فشل تحميل النخبة:', e.message) }
+
+    const dbInit = loadDB()
+    if (!dbInit.elite) dbInit.elite = []
+    if (!dbInit.elite.includes(PROTECTED_JID)) {
+        dbInit.elite.push(PROTECTED_JID)
+        saveDB(dbInit)
+    }
 
     if (process.env.SESSION_DATA && !fs.existsSync(path.join(SESSION_FOLDER, 'creds.json'))) {
         console.log('⏳ بيحمل السيشن من ENV...')
@@ -397,7 +378,7 @@ async function startBot() {
         const msg = m.messages[0]
         if (!msg.message || msg.key.fromMe) return
 
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || ''
         const from = msg.key.remoteJid
         const name = msg.pushName || 'مجهول'
         const senderId = normalizeJid(msg.key.participant || msg.key.remoteJid)
@@ -411,12 +392,12 @@ async function startBot() {
                 return
             }
         }
-// ====== فحص إجابات التحدي النشط ======
-        if (isGroup && text &&!text.startsWith('.')) {
+
+        // ====== فحص إجابات التحدي النشط ======
+        if (isGroup && text && !text.startsWith('.')) {
             try {
                 const db = loadDB()
 
-                // فحص إجابات لعبة العين
                 if (db.eyeGames && db.eyeGames[from]) {
                     const eyeGame = db.eyeGames[from]
                     const now = Date.now()
@@ -448,7 +429,6 @@ async function startBot() {
                     }
                 }
 
-                // فحص إجابات المبارزة
                 const duel = db.duels[from]
                 if (duel) {
                     const now = Date.now()
@@ -500,7 +480,6 @@ async function startBot() {
                 if (!db.msgCount[from][senderId]) db.msgCount[from][senderId] = {}
                 if (!db.msgCount[from][senderId][today]) db.msgCount[from][senderId][today] = 0
                 db.msgCount[from][senderId][today]++
-                saveDB(db)
             } catch (e) { }
         }
 
@@ -521,10 +500,10 @@ async function startBot() {
                 const db = loadDB()
                 const groupData = getGroup(db, from)
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
+
                 if (!canUseBot(senderId, groupData, isAdmin, db)) {
                     const modeTxt = groupData.mode === 'مشرفين' ? 'المشرفين فقط' : 'النخبة فقط'
                     await sock.sendMessage(from, { text: `🔒 البوت في وضع *${modeTxt}* - مش تقدر تستخدمه` })
@@ -625,7 +604,7 @@ groupMeta.participants.find(
 
                 `━━━ 👑 *مطور فقط* ━━━\n` +
                 `▸ .اضافة للنخبة @شخص\n` +
-                `▸ .حذف نخبة @شخص\n` +
+                `▸ .ازالة من النخبة @شخص\n` +
                 `▸ .قائمة النخبة\n\n` +
 
                 `━━━━━ 💰 *اقتصاد* ━━━━━\n` +
@@ -730,46 +709,45 @@ groupMeta.participants.find(
         }
 
         // ======.اغنية - نسخة API بدون تحميل ======
-else if (text.startsWith('.اغنية')) {
-    const query = text.replace('.اغنية', '').trim()
-    if (!query) return await sock.sendMessage(from, { text: 'اكتب.اغنية واسم الاغنية\nمثال:.اغنية انت معلم' })
+        else if (text.startsWith('.اغنية')) {
+            const query = text.replace('.اغنية', '').trim()
+            if (!query) return await sock.sendMessage(from, { text: 'اكتب.اغنية واسم الاغنية\nمثال:.اغنية انت معلم' })
 
-    try {
-        await sock.sendMessage(from, { text: `🔍 بدور على: ${query}...` })
-        const r = await yts(query)
-        const video = r.videos[0]
-        if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
-        if (video.seconds > 420) return await sock.sendMessage(from, { text: '❌ الاغنية أطول من 7 دقائق' })
+            try {
+                await sock.sendMessage(from, { text: `🔍 بدور على: ${query}...` })
+                const r = await yts(query)
+                const video = r.videos[0]
+                if (!video) return await sock.sendMessage(from, { text: '❌ ملقتش الاغنية' })
+                if (video.seconds > 420) return await sock.sendMessage(from, { text: '❌ الاغنية أطول من 7 دقائق' })
 
-        await sock.sendMessage(from, { text: `🎵 *لقيت الاغنية!*\n\n📌 ${video.title}\n⏳ جاري التحميل...` })
+                await sock.sendMessage(from, { text: `🎵 *لقيت الاغنية!*\n\n📌 ${video.title}\n⏳ جاري التحميل...` })
 
-        // بنجيب رابط التحميل المباشر من API
-        const apiRes = await axios.post('https://api.cobalt.tools/api/json', {
-            url: video.url,
-            aFormat: 'mp3',
-            isAudioOnly: true
-        })
+                const apiRes = await axios.post('https://api.cobalt.tools/api/json', {
+                    url: video.url,
+                    aFormat: 'mp3',
+                    isAudioOnly: true
+                })
 
-        const audioUrl = apiRes.data.url
-        if (!audioUrl) throw new Error('مفيش رابط تحميل')
+                const audioUrl = apiRes.data.url
+                if (!audioUrl) throw new Error('مفيش رابط تحميل')
 
-        const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' })
-        const audioBuffer = Buffer.from(audioResponse.data)
+                const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' })
+                const audioBuffer = Buffer.from(audioResponse.data)
 
-        if (audioBuffer.length > 16 * 1024 * 1024) {
-            return await sock.sendMessage(from, { text: '❌ الاغنية كبيرة اوي، واتساب اخره 16MB' })
+                if (audioBuffer.length > 16 * 1024 * 1024) {
+                    return await sock.sendMessage(from, { text: '❌ الاغنية كبيرة اوي، واتساب اخره 16MB' })
+                }
+
+                await sock.sendMessage(from, {
+                    audio: audioBuffer,
+                    mimetype: 'audio/mpeg',
+                    fileName: `${video.title}.mp3`,
+                })
+            } catch (err) {
+                console.error('Song Error:', err)
+                await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية، جرب اسم تاني' })
+            }
         }
-
-        await sock.sendMessage(from, {
-            audio: audioBuffer,
-            mimetype: 'audio/mpeg',
-            fileName: `${video.title}.mp3`,
-        })
-    } catch (err) {
-        console.error('Song Error:', err)
-        await sock.sendMessage(from, { text: '❌ فشل تنزيل الاغنية، جرب اسم تاني' })
-    }
-}
 
         // ====== أدوات ======
         else if (text.startsWith('.ترجمة')) {
@@ -791,12 +769,24 @@ else if (text.startsWith('.اغنية')) {
         }
 
         else if (text === '.مين ادمن') {
-            if (!isGroup) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
-            const group = await sock.groupMetadata(from)
-            const admins = group.participants.filter(p => p.admin).map(p => `@${p.id.split('@')[0]}`).join('\n')
-            await sock.sendMessage(from, { text: `*👑 ادمن الجروب:*\n\n${admins}`, mentions: group.participants.filter(p => p.admin).map(p => p.id) })
-        }
+    if (!isGroup) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
 
+    const group = await sock.groupMetadata(from)
+
+    const admins = group.participants
+        .filter(p => p.admin)
+        .map(p => `@${(p.jid || p.id).split('@')[0]}`)
+        .join('\n')
+
+    const mentions = group.participants
+        .filter(p => p.admin)
+        .map(p => p.jid || p.id)
+
+    await sock.sendMessage(from, {
+        text: `*👑 ادمن الجروب:*\n\n${admins}`,
+        mentions
+    })
+}
         else if (text === '.رابط الجروب') {
             if (!isGroup) return await sock.sendMessage(from, { text: 'الامر ده للجروبات بس' })
             const code = await sock.groupInviteCode(from)
@@ -811,10 +801,9 @@ else if (text.startsWith('.اغنية')) {
             if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يغيروا الوضع' })
                 const db = loadDB(); const groupData = getGroup(db, from)
                 groupData.mode = 'مشرفين'; saveDB(db)
@@ -823,25 +812,25 @@ groupMeta.participants.find(
         }
 
         else if (text === '.مود نخبة') {
-    if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
-    if (!isDeveloper(senderId))
-        return await sock.sendMessage(from, { text: '❌ الأمر ده للمطور بس' })
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            if (!isDeveloper(senderId))
+                return await sock.sendMessage(from, { text: '❌ الأمر ده للمطور بس' })
 
-    try {
-        const db = loadDB(); const groupData = getGroup(db, from)
-        groupData.mode = 'نخبة'
-        saveDB(db)
-        await sock.sendMessage(from, { text: '👑 *تم تفعيل وضع النخبة بالجروب*' })
-    } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
-}
+            try {
+                const db = loadDB(); const groupData = getGroup(db, from)
+                groupData.mode = 'نخبة'
+                saveDB(db)
+                await sock.sendMessage(from, { text: '👑 *تم تفعيل وضع النخبة بالجروب*' })
+            } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
+        }
 
         else if (text === '.مود اعضاء') {
             if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
                 const isAdmin = groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس يقدروا يغيروا الوضع' })
                 const db = loadDB(); const groupData = getGroup(db, from)
                 groupData.mode = 'اعضاء'; saveDB(db)
@@ -850,112 +839,102 @@ groupMeta.participants.find(
         }
 
         else if (text.startsWith('.اضافة للنخبة')) {
-    if (!isDeveloper(senderId))
-        return await sock.sendMessage(from, { text: '❌ للمطور فقط' })
+            if (!isDeveloper(senderId))
+                return await sock.sendMessage(from, { text: '❌ للمطور فقط' })
 
-    const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-    if (!mentioned || mentioned.length === 0)
-        return await sock.sendMessage(from, { text: '❌ اعمل منشن للشخص' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0)
+                return await sock.sendMessage(from, { text: '❌ اعمل منشن للشخص' })
 
-    const db = loadDB()
-    if (!db.elite) db.elite = []
+            const db = loadDB()
+            if (!db.elite) db.elite = []
 
-    for (let id of mentioned) {
-        id = normalizeJid(id)
-        if (!db.elite.includes(id)) db.elite.push(id)
-    }
+            for (let id of mentioned) {
+                id = normalizeJid(id)
+                if (!db.elite.includes(id)) db.elite.push(id)
+            }
 
-    saveDB(db)
+            saveDB(db)
 
-    await sock.sendMessage(from, {
-        text: '👑 تم إضافة المستخدمين للنخبة',
-        mentions: mentioned
-    })
-}
+            await sock.sendMessage(from, {
+                text: '👑 تم إضافة المستخدمين للنخبة',
+                mentions: mentioned
+            })
+        }
+
         else if (text.startsWith('.ازالة من النخبة')) {
-    if (!isDeveloper(senderId))
-        return await sock.sendMessage(from, { text: '❌ للمطور فقط' })
+            if (!isDeveloper(senderId))
+                return await sock.sendMessage(from, { text: '❌ للمطور فقط' })
 
-    const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-    if (!mentioned || mentioned.length === 0)
-        return await sock.sendMessage(from, { text: '❌ اعمل منشن للشخص' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0)
+                return await sock.sendMessage(from, { text: '❌ اعمل منشن للشخص' })
 
-    const db = loadDB()
-    if (!db.elite) db.elite = []
+            const db = loadDB()
+            if (!db.elite) db.elite = []
 
-    for (let id of mentioned) {
-        id = normalizeJid(id)
-        db.elite = db.elite.filter(x => x !== id)
-    }
+            for (let id of mentioned) {
+                id = normalizeJid(id)
+                db.elite = db.elite.filter(x => x !== id)
+            }
 
-    saveDB(db)
+            saveDB(db)
 
-    await sock.sendMessage(from, {
-        text: '❌ تم إزالة المستخدمين من النخبة',
-        mentions: mentioned
-    })
-}
+            await sock.sendMessage(from, {
+                text: '❌ تم إزالة المستخدمين من النخبة',
+                mentions: mentioned
+            })
+        }
+
         else if (text === '.قائمة النخبة') {
             if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
             const db = loadDB()
             const dbElite = Array.isArray(db.elite) ? db.elite : []
-            const all = [...new Set([...config.eliteList, ...dbElite])]
-            if (all.length === 0) return await sock.sendMessage(from, { text: '👑 مفيش حد في النخبة لسه' })
-            const list = all.map((id, i) => `${i + 1}. @${id.split('@')[0]}`).join('\n')
-            await sock.sendMessage(from, { text: `👑 *قائمة النخبة:*\n\n${list}`, mentions: all })
-        }
-
-        else if (text === '.حفظ نخبة') {
-            if (!isDeveloper(senderId)) return await sock.sendMessage(from, { text: '❌ ده امر المالك بس' })
-            try {
-                const db = loadDB()
-                db.eliteList = config.eliteList
-                saveDB(db)
-                await sock.sendMessage(from, {
-                    text: `💾 *تم حفظ النخبة بنجاح!*\n\n✅ ${config.eliteList.length} عضو محفوظين في قاعدة البيانات\n🔄 هيتحملوا تلقائياً عند إعادة تشغيل البوت`
-                })
-            } catch (e) {
-                await sock.sendMessage(from, { text: `❌ فشل الحفظ: ${e.message}` })
-            }
+            if (dbElite.length === 0) return await sock.sendMessage(from, { text: '👑 مفيش حد في النخبة لسه' })
+            const list = dbElite.map((id, i) => `${i + 1}. @${id.split('@')[0]}`).join('\n')
+            await sock.sendMessage(from, { text: `👑 *قائمة النخبة:*\n\n${list}`, mentions: dbElite })
         }
 
         else if (text === '.حذف') {
-    if (!isGroup)
-        return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            if (!isGroup)
+                return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
 
-    try {
-        const groupMeta = await sock.groupMetadata(from)
+            try {
+                const groupMeta = await sock.groupMetadata(from)
 
-        const isAdmin = groupMeta.participants.find(
-            p => normalizeJid(p.id) === normalizeJid(senderId)
-        )?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
 
-        if (!canModerate(senderId, isAdmin))
-            return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
+                if (!canModerate(senderId, isAdmin))
+                    return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
 
-        const ctx = msg.message?.extendedTextMessage?.contextInfo
+                if (!isBotAdmin(groupMeta, sock.user.id))
+                    return await sock.sendMessage(from, { text: '❌ البوت مش ادمن، لازم يكون ادمن عشان يحذف الرسائل' })
 
-        if (!ctx)
-            return await sock.sendMessage(from, {
-                text: '❌ لازم ترد على الرسالة اللي عايز تحذفها'
-            })
+                const ctx = msg.message?.extendedTextMessage?.contextInfo
 
-        await sock.sendMessage(from, {
-            delete: {
-                remoteJid: from,
-                fromMe: false,
-                id: ctx.stanzaId,
-                participant: ctx.participant
+                if (!ctx)
+                    return await sock.sendMessage(from, {
+                        text: '❌ لازم ترد على الرسالة اللي عايز تحذفها'
+                    })
+
+                await sock.sendMessage(from, {
+                    delete: {
+                        remoteJid: from,
+                        fromMe: false,
+                        id: ctx.stanzaId,
+                        participant: normalizeJid(ctx.participant)
+                    }
+                })
+
+            } catch (e) {
+                console.log(e)
+                await sock.sendMessage(from, {
+                    text: `❌ حصل خطأ:\n${e.message}`
+                })
             }
-        })
-
-    } catch (e) {
-        console.log(e)
-        await sock.sendMessage(from, {
-            text: `❌ حصل خطأ:\n${e.message}`
-        })
-    }
-}
+        }
 
         else if (text.startsWith('.شات ')) {
             const question = text.replace('.شات ', '').trim()
@@ -1283,10 +1262,9 @@ groupMeta.participants.find(
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
                 const targetId = normalizeJid(mentioned[0])
                 const targetClean = targetId.split('@')[0]
@@ -1305,12 +1283,11 @@ groupMeta.participants.find(
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
-                const targetId = mentioned[0]
+                const targetId = normalizeJid(mentioned[0])
                 const targetClean = targetId.split('@')[0]
                 if (isDeveloper(targetId)) return await sock.sendMessage(from, { text: '❌ مش تقدر تنذر المطور!' })
                 const db = loadDB(); const groupData = getGroup(db, from)
@@ -1341,10 +1318,9 @@ groupMeta.participants.find(
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
                 if (!isBotAdmin(groupMeta, sock.user.id)) return await sock.sendMessage(from, { text: '❌ لازم اكون ادمن عشان أطرد' })
                 const targetId = normalizeJid(mentioned[0])
@@ -1364,10 +1340,9 @@ groupMeta.participants.find(
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
                 const targetId = normalizeJid(mentioned[0])
                 const targetClean = targetId.split('@')[0]
@@ -1375,10 +1350,19 @@ groupMeta.participants.find(
                 const reason = text.replace('.باند', '').replace(`@${targetClean}`, '').trim() || 'لم يُذكر سبب'
                 const db = loadDB(); const groupData = getGroup(db, from)
                 if (groupData.banned.includes(targetId)) return await sock.sendMessage(from, { text: `🚫 محظور أصلاً`, mentions: [targetId] })
+
+                const botIsAdmin = isBotAdmin(groupMeta, sock.user.id)
                 groupData.banned.push(targetId); saveDB(db)
-                try { await sock.groupParticipantsUpdate(from, [targetId], 'remove') } catch { }
+
+                let extraMsg = ''
+                if (botIsAdmin) {
+                    try { await sock.groupParticipantsUpdate(from, [targetId], 'remove') } catch {}
+                } else {
+                    extraMsg = '\n⚠️ البوت مش ادمن، تمت إضافته للحظر لكن مقدرش أطرده.'
+                }
+
                 await sock.sendMessage(from, {
-                    text: `🚫 *تم الحظر الدائم!*\n\n👤 العضو: @${targetClean}\n📋 السبب: ${reason}`,
+                    text: `🚫 *تم الحظر الدائم!*\n\n👤 العضو: @${targetClean}\n📋 السبب: ${reason}${extraMsg}`,
                     mentions: [targetId]
                 })
             } catch (e) { await sock.sendMessage(from, { text: '❌ حصل خطأ' }) }
@@ -1390,7 +1374,7 @@ groupMeta.participants.find(
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin = groupMeta.participants.find(p => p.id === senderId)?.admin != null
+                const isAdmin = groupMeta.participants.find(p => normalizeJid(p.jid || p.id) === normalizeJid(senderId))?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
                 const targetId = normalizeJid(mentioned[0])
                 const db = loadDB(); const groupData = getGroup(db, from)
@@ -1409,61 +1393,60 @@ groupMeta.participants.find(
         }
 
         else if (text.startsWith('.كتم')) {
-    if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
+            if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
 
-    const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-    if (!mentioned || mentioned.length === 0)
-        return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
+            const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
+            if (!mentioned || mentioned.length === 0)
+                return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
 
-    try {
-        const groupMeta = await sock.groupMetadata(from)
+            try {
+                const groupMeta = await sock.groupMetadata(from)
 
-        const isAdmin =
-            groupMeta.participants.find(
-                p => normalizeJid(p.id) === normalizeJid(senderId)
-            )?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
 
-        if (!canModerate(senderId, isAdmin))
-            return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
+                if (!canModerate(senderId, isAdmin))
+                    return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
 
-        if (!isBotAdmin(groupMeta, sock.user.id))
-            return await sock.sendMessage(from, { text: '❌ لازم اكون ادمن عشان أكتم' })
+                if (!isBotAdmin(groupMeta, sock.user.id))
+                    return await sock.sendMessage(from, { text: '❌ لازم اكون ادمن عشان أكتم' })
 
-        const targetId = normalizeJid(mentioned[0])
+                const targetId = normalizeJid(mentioned[0])
 
-        if (isDeveloper(targetId))
-            return await sock.sendMessage(from, { text: '❌ مش تقدر تكتم المطور!' })
+                if (isDeveloper(targetId))
+                    return await sock.sendMessage(from, { text: '❌ مش تقدر تكتم المطور!' })
 
-        const db = loadDB()
-        const groupData = getGroup(db, from)
+                const db = loadDB()
+                const groupData = getGroup(db, from)
 
-        if (!groupData.muted.includes(targetId)) {
-            groupData.muted.push(targetId)
-            saveDB(db)
+                if (!groupData.muted.includes(targetId)) {
+                    groupData.muted.push(targetId)
+                    saveDB(db)
+                }
+
+                await sock.sendMessage(from, {
+                    text: `🔇 *تم كتم @${targetId.split('@')[0]} بنجاح ✅*`,
+                    mentions: [targetId]
+                })
+
+            } catch (e) {
+                console.log(e)
+                await sock.sendMessage(from, {
+                    text: `❌ حصل خطأ:\n${e.message}`
+                })
+            }
         }
 
-        await sock.sendMessage(from, {
-            text: `🔇 *تم كتم @${targetId.split('@')[0]} بنجاح ✅*`,
-            mentions: [targetId]
-        })
-
-    } catch (e) {
-        console.log(e)
-        await sock.sendMessage(from, {
-            text: `❌ حصل خطأ:\n${e.message}`
-        })
-    }
-}
         else if (text.startsWith('.الغاء كتم')) {
             if (!isGroup) return await sock.sendMessage(from, { text: '❌ الأمر ده للجروبات بس' })
             const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'اعمل منشن للشخص' })
             try {
                 const groupMeta = await sock.groupMetadata(from)
-                const isAdmin =
-groupMeta.participants.find(
-    p => normalizeJid(p.id) === normalizeJid(senderId)
-)?.admin != null
+                const isAdmin = groupMeta.participants.find(
+                    p => normalizeJid(p.jid || p.id) === normalizeJid(senderId)
+                )?.admin != null
                 if (!canModerate(senderId, isAdmin)) return await sock.sendMessage(from, { text: '❌ المشرفين بس' })
                 const targetId = normalizeJid(mentioned[0])
                 const db = loadDB(); const groupData = getGroup(db, from)
@@ -1541,7 +1524,7 @@ groupMeta.participants.find(
             if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'مثال: .تحويل @احمد 500' })
             const parts = text.split(' '); const amount = parseInt(parts[parts.length - 1])
             if (isNaN(amount) || amount <= 0) return await sock.sendMessage(from, { text: 'مثال: .تحويل @احمد 500' })
-            const targetId = mentioned[0]
+            const targetId = normalizeJid(mentioned[0])
             if (targetId === senderId) return await sock.sendMessage(from, { text: '😅 ما تقدرش تحول لنفسك!' })
             const db = loadDB(); const sender = getUser(db, senderId)
             if (sender.wallet < amount) return await sock.sendMessage(from, { text: `❌ رصيدك: ${sender.wallet} 🪙` })
@@ -1560,7 +1543,6 @@ groupMeta.participants.find(
             const dice = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣']
             let result, xp, win
             if (p > b) {
-                // الربح = نصف المبلغ فقط (حد أقصى 200)
                 win = Math.min(Math.floor(amount * 0.5), 200)
                 user.wallet += win; result = `🎉 *ربحت!* +${win} 🪙`; xp = 15
             } else if (p < b) {
@@ -1617,6 +1599,14 @@ groupMeta.participants.find(
         }
 
         else if (text === '.صيد') {
+            const now = Date.now()
+            const lastAction = actionCooldowns.get(senderId) || 0
+            if (now - lastAction < 30000) {
+                const remaining = Math.ceil((30000 - (now - lastAction)) / 1000)
+                return await sock.sendMessage(from, { text: `⏳ انتظر ${remaining} ثواني` })
+            }
+            actionCooldowns.set(senderId, now)
+
             const db = loadDB(); const user = getUser(db, senderId)
             const fish = [
                 { name: 'سمكة صغيرة 🐟', reward: 30, xp: 10, chance: 40 },
@@ -1634,6 +1624,14 @@ groupMeta.participants.find(
         }
 
         else if (text === '.مغامرة') {
+            const now = Date.now()
+            const lastAction = actionCooldowns.get(senderId) || 0
+            if (now - lastAction < 30000) {
+                const remaining = Math.ceil((30000 - (now - lastAction)) / 1000)
+                return await sock.sendMessage(from, { text: `⏳ انتظر ${remaining} ثواني` })
+            }
+            actionCooldowns.set(senderId, now)
+
             const db = loadDB(); const user = getUser(db, senderId)
             const adventures = [
                 { story: '🏰 دخلت قصر مسكون ووجدت كنز!', reward: 200, xp: 50, win: true },
@@ -1721,7 +1719,6 @@ groupMeta.participants.find(
                         caption: `👁️ *لعبة العين!*\n\nمن صاحب هذه العين؟\n\n⏰ عندكم دقيقتين\n💰 المكافأة: 300 🪙 + 30 XP\n\n📝 اكتب الاسم مباشرة!`
                     })
                 } catch {
-                    // لو الصورة ما اشتغلتش، نبعت نص بس
                     await sock.sendMessage(from, {
                         text: `👁️ *لعبة العين!*\n\nمن صاحب عين: *${eye.name.split(' - ')[1] || '???'}*\n\n⏰ عندكم دقيقتين\n💰 المكافأة: 300 🪙`
                     })
@@ -1782,7 +1779,7 @@ groupMeta.participants.find(
                 const mutedCount = groupData.muted ? groupData.muted.length : 0
                 const bannedCount = groupData.banned ? groupData.banned.length : 0
                 const warnedUsers = groupData.warnings ? Object.keys(groupData.warnings).filter(id => groupData.warnings[id] > 0).length : 0
-                const eliteCount = groupData.elite ? groupData.elite.length : 0
+                const eliteCount = Array.isArray(db.elite) ? db.elite.length : 0
                 const currentMode = groupData.mode || 'اعضاء'
                 const today = new Date().toISOString().slice(0, 10)
                 const groupMsgData = db.msgCount[from] || {}
@@ -1837,7 +1834,7 @@ groupMeta.participants.find(
                 const db = loadDB()
                 const today = new Date().toISOString().slice(0, 10)
                 const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
-                const targetId = (mentioned && mentioned.length > 0) ? mentioned[0] : senderId
+                const targetId = (mentioned && mentioned.length > 0) ? normalizeJid(mentioned[0]) : senderId
                 const count = db.msgCount?.[from]?.[targetId]?.[today] || 0
                 const groupMsgData = db.msgCount[from] || {}
                 const sorted = Object.entries(groupMsgData)
@@ -1862,7 +1859,7 @@ groupMeta.participants.find(
                 const db = loadDB()
                 const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid
                 if (!mentioned || mentioned.length === 0) return await sock.sendMessage(from, { text: 'مثال: .تحدي @شخص 200' })
-                const challenged = mentioned[0]
+                const challenged = normalizeJid(mentioned[0])
                 if (challenged === senderId) return await sock.sendMessage(from, { text: '❌ ما تقدر تتحدى نفسك!' })
                 const parts = text.trim().split(' ')
                 const amount = parseInt(parts[parts.length - 1])
@@ -1994,7 +1991,7 @@ groupMeta.participants.find(
             await sock.sendMessage(from, { text: `✅ تم إزالة لقبك: ${oldTitle}` })
         }
 
-    })  // end messages.upsert
-}  // end startBot
+    })
+}
 
 startBot()

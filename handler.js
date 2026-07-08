@@ -1,9 +1,8 @@
 const config = require('./config');
 const { normalizeJid } = require('./utils');
-const adminCmd = require('./commands/admin');
-const eliteCmd = require('./commands/elite');
-const economyCmd = require('./commands/economy');
-
+const adminCmd = require('./admin');
+const eliteCmd = require('./elite');
+const economyCmd = require('./economy');
 async function handleMessage(sock, msg) {
     const m = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
     if (!m.startsWith(config.prefix)) return;

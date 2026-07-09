@@ -2,8 +2,7 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers
 const pino = require('pino');
 const config = require('./config');
 const { loadDB, saveDB } = require('./db');
-const handleMessage = require('./handler');
-
+const { handleMessage } = require('./handler');
 const SESSION_FOLDER = './session';
 
 async function startBot() {

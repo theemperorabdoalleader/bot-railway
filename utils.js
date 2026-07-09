@@ -2,10 +2,13 @@
 const config = require('./config');
 
 function normalizeJid(jid) {
-    if (!jid) return '';
-    return jid.replace(/:\d+@/, '@').toLowerCase();
-}
+    if (!jid) return ''
 
+    return jid
+        .replace(/:\d+/, '')
+        .replace('@lid', '@s.whatsapp.net')
+        .toLowerCase()
+}
 async function isElite(sock, jid) {
     jid = normalizeJid(jid);
     return config.elite.includes(jid);

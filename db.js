@@ -1,7 +1,9 @@
 const fs = require('fs');
 const config = require('./config');
-let db = config.db;
-
+let db = {
+    elite: [],
+    users: {}
+};
 async function loadDB() {
     if (fs.existsSync('./database.json')) {
         db = JSON.parse(fs.readFileSync('./database.json'));

@@ -83,6 +83,5 @@ module.exports = {
     run
 };
     sock.sendMessage(from, { text: `🐦 اصطدت عصفور وكسبت ${earn} جنيه\nرصيدك: ${data[sender].money}` });
-}
 
 module.exports = { hunt };

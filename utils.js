@@ -1,20 +1,24 @@
-const { normalizeJid } = require('@whiskeysockets/baileys');
-const { db } = require('./db');
+// utils.js
+const config = require('./config');
 
-function isAdmin(sock, groupId, sender) {
-    return sock.groupMetadata(groupId).then(meta =>
-        meta.participants.find(p => p.id === sender)?.admin
-    );
+function normalizeJid(jid) {
+    if (!jid) return '';
+    return jid.replace(/:\d+@/, '@').toLowerCase();
 }
 
-function checkCooldown(user, cmd, seconds = 30) {
-    const now = Date.now();
-    if (!db.cooldowns) db.cooldowns = {};
-    if (db.cooldowns[cmd] && now - db.cooldowns[cmd] < seconds * 1000) {
-        return Math.ceil((seconds * 1000 - (now - db.cooldowns[cmd])) / 1000);
+async function isElite(sock, jid) {
+    jid = normalizeJid(jid);
+    return config.elite.includes(jid);
+}
+
+async function isAdmin(sock, groupJid, userJid) {
+    try {
+        const metadata = await sock.groupMetadata(groupJid);
+        const participant = metadata.participants.find(p => normalizeJid(p.id) === normalizeJid(userJid));
+        return participant?.admin === 'admin' || participant?.admin === 'superadmin';
+    } catch {
+        return false;
     }
-    db.cooldowns[cmd] = now;
-    return false;
 }
 
-module.exports = { normalizeJid, isAdmin, checkCooldown };
+module.exports = { normalizeJid, isElite, isAdmin };

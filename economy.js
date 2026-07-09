@@ -1,40 +1,87 @@
-// economy.js
-const fs = require('fs');
-const path = './data.json';
+// ===============================
+// 💰 نظام الاقتصاد
+// ===============================
 
-// نجيب الداتا
-function getData() {
-    if (!fs.existsSync(path)) return {};
-    return JSON.parse(fs.readFileSync(path));
-}
+const { getUser, saveDB } = require('./db');
 
-// نحفظ الداتا
-function saveData(data) {
-    fs.writeFileSync(path, JSON.stringify(data, null, 2));
-}
+async function run(sock, msg, command, args) {
 
-// فانكشن الكول داون اللي ناقصة
-function checkCooldown(lastTime, cooldown) {
-    if (!lastTime) return true;
-    const now = Date.now();
-    return (now - lastTime) > cooldown;
-}
+    const from = msg.key.remoteJid;
+    const sender = msg.key.participant || msg.key.remoteJid;
 
-async function hunt(sock, from, sender) {
-    let data = getData();
-    if (!data[sender]) data[sender] = { money: 0, lastHunt: 0 };
+    // ===========================
+    // .اصطاد
+    // ===========================
 
-    const cooldown = 60000; // دقيقة واحدة
-    if (!checkCooldown(data[sender].lastHunt, cooldown)) {
-        const left = Math.ceil((cooldown - (Date.now() - data[sender].lastHunt)) / 1000);
-        return sock.sendMessage(from, { text: `❌ استنى ${left} ثانية عشان تصطاد تاني` });
+    if (command === 'اصطاد' || command === 'hunt') {
+
+        const user = getUser(sender);
+
+        const cooldown = 60 * 1000;
+
+        if (Date.now() - user.lastHunt < cooldown) {
+
+            const left = Math.ceil(
+                (cooldown - (Date.now() - user.lastHunt)) / 1000
+            );
+
+            await sock.sendMessage(from, {
+                text: `⏳ استنى ${left} ثانية وبعدين اصطاد تاني.`
+            });
+
+            return true;
+        }
+
+        const reward = Math.floor(Math.random() * 151) + 50;
+
+        user.money += reward;
+        user.lastHunt = Date.now();
+
+        await saveDB();
+
+        await sock.sendMessage(from, {
+            text:
+`🐦 اصطدت بنجاح!
+
+💰 المكافأة: ${reward} جنيه
+
+💵 رصيدك الحالي: ${user.money} جنيه`
+        });
+
+        return true;
     }
 
-    const earn = Math.floor(Math.random() * 100) + 50;
-    data[sender].money += earn;
-    data[sender].lastHunt = Date.now();
-    saveData(data);
+    // ===========================
+    // .فلوسي
+    // ===========================
 
+    if (
+        command === 'فلوسي' ||
+        command === 'رصيدي' ||
+        command === 'money'
+    ) {
+
+        const user = getUser(sender);
+
+        await sock.sendMessage(from, {
+            text:
+`💰 رصيدك
+
+💵 المحفظة: ${user.money}
+🏦 البنك: ${user.bank}
+⭐ المستوى: ${user.level}
+✨ الخبرة: ${user.xp}`
+        });
+
+        return true;
+    }
+
+    return false;
+}
+
+module.exports = {
+    run
+};
     sock.sendMessage(from, { text: `🐦 اصطدت عصفور وكسبت ${earn} جنيه\nرصيدك: ${data[sender].money}` });
 }
 

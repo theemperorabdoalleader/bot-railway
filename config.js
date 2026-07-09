@@ -1,9 +1,6 @@
+// config.js
 module.exports = {
-    prefix: '.',
-    owner: ['01149182286@s.whatsapp.net'], // رقمك
-    db: {
-        elite: [],
-        users: {},
-        cooldowns: {}
-    }
-};
+    owner: ['201149182286@s.whatsapp.net'], // حط رقمك هنا
+    elite: ['201149182286@s.whatsapp.net'], // نفس رقمك
+    prefix: '.'
+}

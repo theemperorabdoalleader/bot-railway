@@ -17,7 +17,10 @@ async function isElite(sock, jid) {
 async function isAdmin(sock, groupJid, userJid) {
     try {
         const metadata = await sock.groupMetadata(groupJid);
-        const participant = metadata.participants.find(p => normalizeJid(p.id) === normalizeJid(userJid));
+        const participant =
+metadata.participants.find(p =>
+normalizeJid(p.id || p.jid) === normalizeJid(userJid)
+);
         return participant?.admin === 'admin' || participant?.admin === 'superadmin';
     } catch {
         return false;

@@ -1,57 +1,61 @@
-const adminCmd = require('./admin');
-const eliteCmd = require('./elite');
-const economyCmd = require('./economy');
-const { isElite, isAdmin, normalizeJid } = require('./utils');
+// ===============================
+// 📨 معالج الرسائل الرئيسي
+// ===============================
+
 const config = require('./config');
 
-const prefix = '.';
+const admin = require('./admin');
+const elite = require('./elite');
+const economy = require('./economy');
 
 async function handleMessage(sock, msg) {
+
     const from = msg.key.remoteJid;
-    const sender = normalizeJid(msg.key.participant || msg.key.remoteJid);
-    const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-    
-    if (!text.startsWith(prefix)) return;
-    
-    const args = text.slice(prefix.length).trim().split(/ +/);
+
+    const sender =
+        msg.key.participant ||
+        msg.key.remoteJid;
+
+    const text =
+        msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text ||
+        '';
+
+    if (!text.startsWith(config.prefix)) return;
+
+    const args = text
+        .slice(config.prefix.length)
+        .trim()
+        .split(/\s+/);
+
     const command = args.shift().toLowerCase();
 
     try {
-        // ===== اوامر الاقتصاد =====
-        if (command === 'اصطاد' || command === 'hunt') {
-            return await economyCmd.hunt(sock, from, sender);
-        }
 
-        // ===== اوامر النخبة - للاونر فقط =====
-        if (command === 'اضافة_نخبة' || command === 'addelite') {
-            if (!config.owner.includes(sender)) 
-                return sock.sendMessage(from, { text: '❌ ده للاونر بس يغالي' });
-            return await eliteCmd.add(sock, from, sender, args);
-        }
+        // أوامر الإدارة
+        if (await admin.run(sock, msg, command, args))
+            return;
 
-        // ===== اوامر الادمن =====
-        if (command === 'طرد' || command === 'kick') {
-            const isSenderAdmin = await isAdmin(sock, from, sender);
-            if (!isSenderAdmin) 
-                return sock.sendMessage(from, { text: '❌ لازم تكون ادمن في الجروب' });
-            return await adminCmd.kick(sock, from, sender, args);
-        }
+        // أوامر النخبة
+        if (await elite.run(sock, msg, command, args))
+            return;
 
-        // قائمة الاوامر
-        if (command === 'الاوامر' || command === 'menu') {
-            return sock.sendMessage(from, { text: `
-*قائمة الاوامر:*
-.اصطاد - تصطاد وتكسب فلوس
-.اضافة_نخبة رقم - تضيف للنخبة "اونر فقط"
-.طرد رقم - تطرد من الجروب "ادمن فقط"
-`});
+        // أوامر الاقتصاد
+        if (await economy.run(sock, msg, command, args))
+            return;
 
-        }
+    } catch (err) {
 
-    } catch (e) {
-        console.error(e);
-        sock.sendMessage(from, { text: '❌ حصل ايرور: ' + e.message });
+        console.error(err);
+
+        await sock.sendMessage(from, {
+            text: "❌ حصل خطأ أثناء تنفيذ الأمر."
+        });
+
     }
+
 }
 
-module.exports = { handleMessage };
+module.exports = {
+    handleMessage
+};

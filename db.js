@@ -18,13 +18,23 @@ async function loadDB() {
         if (fs.existsSync(path)) {
             try {
                 const data = JSON.parse(fs.readFileSync(path, 'utf8'));
-                db = { /* ... */ };
+
+                db = {
+                    elite: data.elite || [],
+                    users: data.users || {},
+                    groups: data.groups || {},
+                    settings: data.settings || {}
+                };
             } catch (parseErr) {
                 console.error('❌ خطأ في قراءة JSON:', parseErr);
                 saveDB(); // إعادة تعيين
             }
+        } else {
+            saveDB();
         }
-    } catch (err) { /* ... */ }
+    } catch (err) {
+        console.error('❌ خطأ في تحميل قاعدة البيانات:', err);
+    }
 }
 
 // حفظ قاعدة البيانات

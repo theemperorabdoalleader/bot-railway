@@ -1,8 +1,8 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const pino = require('pino');
-const config = require('./config');
-const { loadDB, saveDB } = require('./db');
-const { handleMessage } = require('./handler');
+const config = require('./config/config');
+const { loadDB, saveDB } = require('./core/db');
+const { handleMessage } = require('./core/handler');
 const SESSION_FOLDER = './session';
 
 async function startBot() {

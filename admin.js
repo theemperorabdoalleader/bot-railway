@@ -11,7 +11,7 @@ const {
 async function run(sock, msg, command, args) {
 
     const from = msg.key.remoteJid;
-    const sender = msg.key.participant || msg.key.remoteJid;
+    const sender = normalizeJid(msg.key.participant || msg.key.remoteJid);
 
     // ===========================
     // .طرد
@@ -40,15 +40,15 @@ async function run(sock, msg, command, args) {
             });
 
         // استخراج المنشن لو موجود، وإلا خد أول كلمة
-let target = args[0];
-const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
-if (mentioned && mentioned.length > 0) {
-    target = mentioned[0]; // أول حد اتعمل له منشن
-}
-if (!target) {
-    return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن للشخص.' });
-}
-const targetJid = normalizeJid(target);
+        let target = args[0];
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+        if (mentioned && mentioned.length > 0) {
+            target = mentioned[0]; // أول حد اتعمل له منشن
+        }
+        if (!target) {
+            return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن للشخص.' });
+        }
+        const targetJid = normalizeJid(target);
         await sock.groupParticipantsUpdate(
             from,
             [targetJid],

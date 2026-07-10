@@ -7,7 +7,7 @@ const {
     isBotAdmin,
     normalizeJid,
     isValidJid
-} = require('./utils');
+} = require('../core/utils')
 
 async function run(sock, msg, command, args) {
 

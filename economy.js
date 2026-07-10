@@ -7,7 +7,7 @@ const { getUser, saveDB } = require('./db');
 async function run(sock, msg, command, args) {
 
     const from = msg.key.remoteJid;
-    const sender = msg.key.participant || msg.key.remoteJid;
+    const sender = normalizeJid(msg.key.participant || msg.key.remoteJid);
 
     // ===========================
     // .اصطاد

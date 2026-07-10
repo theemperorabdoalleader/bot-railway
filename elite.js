@@ -27,17 +27,19 @@ async function run(sock, msg, command, args) {
             });
 
         let target = args[0];
-const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
-if (mentioned && mentioned.length > 0) {
-    target = mentioned[0];
-}
-if (!target) {
-    return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن.' });
-}
-const targetJid = normalizeJid(target);
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+        if (mentioned && mentioned.length > 0) {
+            target = mentioned[0];
+        }
+        if (!target) {
+            return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن.' });
+        }
+        const targetJid = normalizeJid(target);
         if (!db.elite.includes(targetJid)) {
-    db.elite.push(targetJid);
-    }
+            db.elite.push(targetJid);
+        }
+
+        await saveDB();
 
         await sock.sendMessage(from, {
             text: '✅ تمت الإضافة إلى النخبة.'
@@ -63,17 +65,17 @@ const targetJid = normalizeJid(target);
             });
 
         let target = args[0];
-const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
-if (mentioned && mentioned.length > 0) {
-    target = mentioned[0];
-}
-if (!target) {
-    return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن.' });
-}
-const targetJid = normalizeJid(target);
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+        if (mentioned && mentioned.length > 0) {
+            target = mentioned[0];
+        }
+        if (!target) {
+            return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن.' });
+        }
+        const targetJid = normalizeJid(target);
         db.elite = db.elite.filter(
-    user => normalizeJid(user) !== targetJid
-);
+            user => normalizeJid(user) !== targetJid
+        );
 
         await saveDB();
 

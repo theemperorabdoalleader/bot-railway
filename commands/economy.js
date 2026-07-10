@@ -2,9 +2,8 @@
 // 💰 نظام الاقتصاد
 // ===============================
 
-const { getUser, saveDB } = require('./db');
-const { normalizeJid } = require('./utils');
-
+const { getUser, saveDB } = require('../core/db')
+const { normalizeJid } = require('../core/utils')
 async function run(sock, msg, command, args) {
 
     const from = msg.key.remoteJid;

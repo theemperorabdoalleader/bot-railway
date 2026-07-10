@@ -39,8 +39,16 @@ async function run(sock, msg, command, args) {
                 text: '❌ اكتب أو اعمل منشن للشخص.'
             });
 
-        const target = normalizeJid(args[0]);
-
+        // استخراج المنشن لو موجود، وإلا خد أول كلمة
+let target = args[0];
+const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+if (mentioned && mentioned.length > 0) {
+    target = mentioned[0]; // أول حد اتعمل له منشن
+}
+if (!target) {
+    return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن للشخص.' });
+}
+const targetJid = normalizeJid(target);
         await sock.groupParticipantsUpdate(
             from,
             [target],

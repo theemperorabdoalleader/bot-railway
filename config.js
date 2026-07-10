@@ -5,8 +5,7 @@
 module.exports = {
     // رقم المطور (بدون +)
     owner: process.env.OWNER_JID ? 
-    process.env.OWNER_JID.split(',') : 
-    ['201149182286@s.whatsapp.net'],
+    process.env.OWNER_JID.split(','),
     // بادئة الأوامر
     prefix: '.',
 

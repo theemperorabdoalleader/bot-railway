@@ -26,8 +26,15 @@ async function run(sock, msg, command, args) {
                 text: '❌ اكتب رقم أو منشن.'
             });
 
-        const target = normalizeJid(args[0]);
-
+        let target = args[0];
+const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+if (mentioned && mentioned.length > 0) {
+    target = mentioned[0];
+}
+if (!target) {
+    return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن.' });
+}
+const targetJid = normalizeJid(target);
         if (!db.elite.includes(target)) {
             db.elite.push(target);
             await saveDB();
@@ -56,8 +63,15 @@ async function run(sock, msg, command, args) {
                 text: '❌ اكتب رقم أو منشن.'
             });
 
-        const target = normalizeJid(args[0]);
-
+        let target = args[0];
+const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+if (mentioned && mentioned.length > 0) {
+    target = mentioned[0];
+}
+if (!target) {
+    return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن.' });
+}
+const targetJid = normalizeJid(target);
         db.elite = db.elite.filter(
             user => normalizeJid(user) !== target
         );

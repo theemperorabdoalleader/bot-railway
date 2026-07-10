@@ -3,6 +3,7 @@
 // ===============================
 
 const config = require('./config');
+const { normalizeJid } = require('./utils');
 
 const admin = require('./admin');
 const elite = require('./elite');
@@ -12,9 +13,10 @@ async function handleMessage(sock, msg) {
 
     const from = msg.key.remoteJid;
 
-    const sender =
+    const sender = normalizeJid(
         msg.key.participant ||
-        msg.key.remoteJid;
+        msg.key.remoteJid
+    );
 
     const text =
         msg.message?.conversation ||

@@ -6,13 +6,29 @@ const config = require('./config');
 const { db } = require('./db');
 
 // توحيد الـ JID
-function normalizeJid(jid) {
-    if (!jid) return '';
+// توحيد الـ JID أو الرقم
+function normalizeJid(input) {
+    if (!input) return '';
 
-    return jid
-        .replace(/:\d+@/, '@')
-        .replace('@lid', '@s.whatsapp.net')
-        .toLowerCase();
+    let jid = String(input).trim();
+
+    // إزالة @lid
+    jid = jid.replace('@lid', '');
+
+    // إزالة :xx@
+    jid = jid.replace(/:\d+@/, '@');
+
+    // لو JID كامل
+    if (jid.endsWith('@s.whatsapp.net'))
+        return jid.toLowerCase();
+
+    // لو رقم فقط
+    jid = jid.replace(/\D/g, '');
+
+    if (jid.length >= 8)
+        return `${jid}@s.whatsapp.net`;
+
+    return '';
 }
 
 // هل الشخص هو المطور؟

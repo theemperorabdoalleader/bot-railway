@@ -2,8 +2,14 @@
 // ⚙️ إعدادات بوت الأباطرة
 // ===============================
 
-const { normalizeJid } = require('./utils');
-
+owner: process.env.OWNER_JID
+    ? process.env.OWNER_JID.split(',').map(jid =>
+        jid.trim()
+            .replace(/:\d+@/, '@')
+            .replace('@lid', '@s.whatsapp.net')
+            .toLowerCase()
+      )
+    : ['201149182286@s.whatsapp.net'],
 module.exports = {
     // رقم المطور (بدون +)
     owner: process.env.OWNER_JID ? 

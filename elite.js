@@ -35,10 +35,9 @@ if (!target) {
     return sock.sendMessage(from, { text: '❌ اكتب الرقم أو اعمل منشن.' });
 }
 const targetJid = normalizeJid(target);
-        if (!db.elite.includes(target)) {
-            db.elite.push(target);
-            await saveDB();
-        }
+        if (!db.elite.includes(targetJid)) {
+    db.elite.push(targetJid);
+    }
 
         await sock.sendMessage(from, {
             text: '✅ تمت الإضافة إلى النخبة.'
@@ -73,8 +72,8 @@ if (!target) {
 }
 const targetJid = normalizeJid(target);
         db.elite = db.elite.filter(
-            user => normalizeJid(user) !== target
-        );
+    user => normalizeJid(user) !== targetJid
+);
 
         await saveDB();
 

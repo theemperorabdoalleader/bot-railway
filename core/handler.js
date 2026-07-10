@@ -2,13 +2,12 @@
 // 📨 معالج الرسائل الرئيسي
 // ===============================
 
-const config = require('./config');
+const config = require('../config/config');
 const { normalizeJid } = require('./utils');
 
-const admin = require('./admin');
-const elite = require('./elite');
-const economy = require('./economy');
-
+const admin = require('../commands/admin');
+const elite = require('../commands/elite');
+const economy = require('../commands/economy');
 async function handleMessage(sock, msg) {
 
     const from = msg.key.remoteJid;

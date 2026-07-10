@@ -51,7 +51,7 @@ if (!target) {
 const targetJid = normalizeJid(target);
         await sock.groupParticipantsUpdate(
             from,
-            [target],
+            [targetJid],
             'remove'
         );
 

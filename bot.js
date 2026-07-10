@@ -37,11 +37,16 @@ async function startBot() {
     });
 
     sock.ev.on('messages.upsert', async (m) => {
-        if (m.type!== 'notify') return;
-        const msg = m.messages[0];
-        if (!msg.message) return;
-        await handleMessage(sock, msg);
-    });
+    if (m.type !== 'notify') return;
+    const msg = m.messages[0];
+    if (!msg.message) return;
+    
+    // ========== التعديل الجديد ==========
+    if (msg.key.fromMe) return; // يتجاهل رسايل البوت نفسه عشان مايعملش لوب
+    // ====================================
+
+    await handleMessage(sock, msg);
+});
 
     setInterval(saveDB, 5 * 60 * 1000);
 }

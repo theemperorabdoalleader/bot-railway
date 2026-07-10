@@ -2,9 +2,8 @@
 // ⭐ أوامر النخبة
 // ===============================
 
-const { db, saveDB } = require('./db');
-const { normalizeJid, isOwner } = require('./utils');
-
+const { db, saveDB } = require('../core/db')
+const { normalizeJid, isOwner } = require('../core/utils')
 async function run(sock, msg, command, args) {
 
     const from = msg.key.remoteJid;

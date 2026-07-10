@@ -3,6 +3,7 @@
 // ===============================
 
 const { getUser, saveDB } = require('./db');
+const { normalizeJid } = require('./utils');
 
 async function run(sock, msg, command, args) {
 

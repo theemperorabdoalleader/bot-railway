@@ -2,9 +2,8 @@
 // 🛠️ أدوات بوت الأباطرة
 // ===============================
 
-const config = require('./config');
+const config = require('../config/config');
 const { db } = require('./db');
-
 // توحيد الـ JID
 // توحيد الـ JID أو الرقم
 function normalizeJid(input) {

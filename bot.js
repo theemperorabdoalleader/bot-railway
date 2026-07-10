@@ -16,7 +16,7 @@ async function startBot() {
         qrTimeout: 60000
     });
 
-    sock.ev.on('creds.update', saveCreds); // بس كده. مفيش حفظ ولا طباعة
+    sock.ev.on('creds.update', saveCreds);
 
     await loadDB();
 
@@ -29,7 +29,7 @@ async function startBot() {
             console.log('==================================\n');
         }
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect.error?.output?.statusCode!== DisconnectReason.loggedOut;
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('قطع الاتصال, باعيد التشغيل...');
             if (shouldReconnect) startBot();
         }
@@ -37,16 +37,18 @@ async function startBot() {
     });
 
     sock.ev.on('messages.upsert', async (m) => {
-    if (m.type !== 'notify') return;
-    const msg = m.messages[0];
-    if (!msg.message) return;
-    
-    // ========== التعديل الجديد ==========
-    if (msg.key.fromMe) return; // يتجاهل رسايل البوت نفسه عشان مايعملش لوب
-    // ====================================
+        try {
+            if (m.type !== 'notify') return;
+            const msg = m.messages[0];
+            if (!msg.message) return;
+            
+            if (msg.key.fromMe) return;
 
-    await handleMessage(sock, msg);
-});
+            await handleMessage(sock, msg);
+        } catch (err) {
+            console.error('❌ خطأ في معالجة الرسالة:', err);
+        }
+    });
 
     setInterval(saveDB, 5 * 60 * 1000);
 }

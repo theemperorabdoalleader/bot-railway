@@ -16,20 +16,15 @@ let db = {
 async function loadDB() {
     try {
         if (fs.existsSync(path)) {
-            const data = JSON.parse(fs.readFileSync(path, 'utf8'));
-
-            db = {
-                elite: data.elite || [],
-                users: data.users || {},
-                groups: data.groups || {},
-                settings: data.settings || {}
-            };
-        } else {
-            saveDB();
+            try {
+                const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+                db = { /* ... */ };
+            } catch (parseErr) {
+                console.error('❌ خطأ في قراءة JSON:', parseErr);
+                saveDB(); // إعادة تعيين
+            }
         }
-    } catch (err) {
-        console.error('❌ خطأ في تحميل قاعدة البيانات:', err);
-    }
+    } catch (err) { /* ... */ }
 }
 
 // حفظ قاعدة البيانات

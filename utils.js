@@ -69,9 +69,21 @@ async function isBotAdmin(sock, groupJid) {
         return false;
     }
 }
+function isValidJid(jid) {
+    if (!jid) return false;
+
+    jid = normalizeJid(jid);
+
+    // لو هو JID كامل
+    if (jid.endsWith('@s.whatsapp.net')) return true;
+
+    // لو المستخدم كتب رقم فقط
+    return /^[0-9]{8,20}$/.test(jid);
+}
 
 module.exports = {
     normalizeJid,
+    isValidJid,
     isOwner,
     isElite,
     isAdmin,

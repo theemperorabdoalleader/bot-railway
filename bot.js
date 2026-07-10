@@ -29,16 +29,23 @@ async function startBot() {
             console.log('==================================\n');
         }
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('قطع الاتصال, باعيد التشغيل...');
-            if (shouldReconnect) {
-    console.log('🔄 إعادة الاتصال خلال 3 ثوان...');
-    setTimeout(() => {
-        startBot();
-    }, 3000);
+    const shouldReconnect =
+        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+
+    console.log('قطع الاتصال, باعيد التشغيل...');
+
+    if (shouldReconnect) {
+        console.log('🔄 إعادة الاتصال خلال 3 ثوان...');
+        setTimeout(() => {
+            startBot();
+        }, 3000);
+    }
 }
-        if (connection === 'open') console.log('البوت اشتغل ✅');
-    });
+
+if (connection === 'open') {
+    console.log('البوت اشتغل ✅');
+}
+});
 
     sock.ev.on('messages.upsert', async (m) => {
         try {

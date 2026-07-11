@@ -32,8 +32,21 @@ function normalizeJid(input) {
 
 // هل الشخص هو المطور؟
 function isOwner(jid) {
-    jid = normalizeJid(jid);
-    return config.owner.some(owner => normalizeJid(owner) === jid);
+
+    if (!jid) return false;
+
+    const clean = normalizeJid(jid)
+        .split('@')[0]
+        .split(':')[0];
+
+    return config.owner.some(owner => {
+
+        const ownerClean = normalizeJid(owner)
+            .split('@')[0]
+            .split(':')[0];
+
+        return clean === ownerClean;
+    });
 }
 
 // هل الشخص من النخبة؟
@@ -69,11 +82,24 @@ async function isBotAdmin(sock, groupJid) {
     try {
         const metadata = await sock.groupMetadata(groupJid);
 
-        const botId = normalizeJid(sock.user.id);
+        const botNumber = sock.user.id.split(':')[0];
 
-        const participant = metadata.participants.find(
-            p => normalizeJid(p.id || p.jid) === botId
+        const participant = metadata.participants.find(p => {
+            const id = (p.id || p.jid || '').split(':')[0];
+            return id.includes(botNumber);
+        });
+
+        return !!(
+            participant &&
+            (participant.admin === 'admin' ||
+             participant.admin === 'superadmin')
         );
+
+    } catch (err) {
+        console.log('Bot admin check error:', err);
+        return false;
+    }
+}
 
         return (
             participant?.admin === 'admin' ||

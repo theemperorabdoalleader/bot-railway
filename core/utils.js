@@ -105,8 +105,7 @@ async function isBotAdmin(sock, groupJid) {
             participant?.admin === 'admin' ||
             participant?.admin === 'superadmin'
         );
-
-    } catch (err) {
+catch (err) {
         return false;
     }
 }

@@ -100,15 +100,6 @@ async function isBotAdmin(sock, groupJid) {
         return false;
     }
 }
-
-        return (
-            participant?.admin === 'admin' ||
-            participant?.admin === 'superadmin'
-        );
-catch (err) {
-        return false;
-    }
-}
 function isValidJid(jid) {
     if (!jid) return false;
 
